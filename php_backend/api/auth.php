@@ -5,9 +5,10 @@ header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-include_once '../config/supabase_client.php';
+include_once '../config/db_connect.php';
 
-$supabase = new SupabaseClient();
+$database = new Database();
+$db = $database->getConnection();
 $data = json_decode(file_get_contents("php://input"));
 
 if ($data->action == "login") {
@@ -18,14 +19,17 @@ if ($data->action == "login") {
     }
 
     try {
-        $users = $supabase->query(
-            "users",
-            "id,email,password_hash,role,vendors(id,business_name)",
-            ["email" => "eq." . $data->email]
-        );
+        $sql = "SELECT u.id, u.email, u.password_hash, u.role, u.username,
+                       v.id as vendor_id, v.business_name, v.verified,
+                       c.first_name, c.last_name
+                FROM users u 
+                LEFT JOIN vendors v ON u.id = v.id 
+                LEFT JOIN customers c ON u.id = c.id
+                WHERE u.email = :email";
+        $stmt = $database->executeQuery($sql, [':email' => $data->email]);
+        $user = $stmt->fetch();
 
-        if (count($users) > 0) {
-            $user = $users[0];
+        if ($user) {
             if (password_verify($data->password, $user['password_hash'])) {
                 $token = bin2hex(random_bytes(32));
                 $response = [
@@ -33,13 +37,20 @@ if ($data->action == "login") {
                     "message" => "Login successful",
                     "user_id" => $user['id'],
                     "email" => $user['email'],
+                    "username" => $user['username'],
                     "role" => $user['role'],
                     "token" => $token
                 ];
-                if ($user['role'] === 'vendor' && !empty($user['vendors'])) {
-                    $vendor = $user['vendors'][0];
-                    $response['vendor_id'] = $vendor['id'];
-                    $response['business_name'] = $vendor['business_name'];
+
+                if ($user['role'] === 'customer' && !empty($user['first_name'])) {
+                    $response['first_name'] = $user['first_name'];
+                    $response['last_name'] = $user['last_name'];
+                }
+
+                if ($user['role'] === 'vendor' && !empty($user['vendor_id'])) {
+                    $response['vendor_id'] = $user['vendor_id'];
+                    $response['business_name'] = $user['business_name'];
+                    $response['verified'] = $user['verified'];
                 }
                 echo json_encode($response);
             } else {
@@ -62,13 +73,11 @@ if ($data->action == "login") {
     }
 
     try {
-        // 🔎 Check if email/username exists
-        $existing_check = $supabase->query(
-            "users",
-            "email,username",
-            ["or" => "(email.eq." . $data->email . ",username.eq." . $data->username . ")"]
-        );
-        foreach ($existing_check as $existing) {
+        $check_sql = "SELECT email, username FROM users WHERE email = :email OR username = :username";
+        $stmt = $database->executeQuery($check_sql, [':email' => $data->email, ':username' => $data->username]);
+        $existing = $stmt->fetch();
+
+        if ($existing) {
             if ($existing['email'] === $data->email) {
                 http_response_code(409);
                 echo json_encode(["status" => "error", "message" => "Email already exists"]);
@@ -85,18 +94,22 @@ if ($data->action == "login") {
         $role = isset($data->role) ? strtolower($data->role) : 'customer';
         $now = date("Y-m-d H:i:s");
 
-        // ✅ Insert into users
-        $user_data = [
-            "email" => $data->email,
-            "username" => $data->username,
-            "password_hash" => $password_hash,
-            "role" => $role,
-            "created_at" => $now
-        ];
-        $new_user = $supabase->insert("users", $user_data);
+        $db->beginTransaction();
 
-        if ($new_user) {
-            $user_id = $new_user[0]['id'];
+        // Insert into users table
+        $user_sql = "INSERT INTO users (email, username, password_hash, role, created_at) 
+                     VALUES (:email, :username, :password_hash, :role, :created_at) 
+                     RETURNING id";
+        $stmt = $database->executeQuery($user_sql, [
+            ':email' => $data->email,
+            ':username' => $data->username,
+            ':password_hash' => $password_hash,
+            ':role' => $role,
+            ':created_at' => $now
+        ]);
+        $user_id = $stmt->fetchColumn();
+
+        if ($user_id) {
             $response = [
                 "status" => "success",
                 "message" => "Registration successful",
@@ -106,55 +119,76 @@ if ($data->action == "login") {
 
             try {
                 if ($role === 'customer') {
-                    // ✅ Insert into customers
-                    $customer_data = [
-                        "id" => $user_id,
-                        "first_name" => $data->first_name,
-                        "middle_name" => $data->middle_name ?? null,
-                        "last_name" => $data->last_name,
-                        "suffix" => $data->suffix ?? null,
-                        "phone_number" => $data->phone ?? null,
-                        "created_at" => $now
-                    ];
-                    $supabase->insert("customers", $customer_data);
-                } elseif ($role === 'vendor') {
-                    // ✅ Insert into vendors
-                    $vendor_data = [
-                        "id" => $user_id,
-                        "business_name" => !empty($data->business_name) ? $data->business_name : "New Business",
-                        "description" => $data->business_description ?? null,
-                        "business_category" => $data->business_category ?? null,
-                        "created_at" => $now
-                    ];
-                    $supabase->insert("vendors", $vendor_data);
+                    // Insert into customers table
+                    $customer_sql = "INSERT INTO customers (id, first_name, middle_name, last_name, suffix, phone_number, address, city, postal_code, created_at) 
+                                   VALUES (:id, :first_name, :middle_name, :last_name, :suffix, :phone_number, :address, :city, :postal_code, :created_at)";
+                    $database->executeQuery($customer_sql, [
+                        ':id' => $user_id,
+                        ':first_name' => $data->first_name,
+                        ':middle_name' => $data->middle_name ?? null,
+                        ':last_name' => $data->last_name,
+                        ':suffix' => $data->suffix ?? null,
+                        ':phone_number' => $data->phone ?? null,
+                        ':address' => $data->address ?? null,
+                        ':city' => $data->city ?? null,
+                        ':postal_code' => $data->postal_code ?? null,
+                        ':created_at' => $now
+                    ]);
 
-                    // ✅ Insert into vendor_contacts
-                    $contact_data = [
-                        "id" => $user_id,
-                        "first_name" => $data->first_name,
-                        "middle_name" => $data->middle_name ?? null,
-                        "last_name" => $data->last_name,
-                        "suffix" => $data->suffix ?? null,
-                        "phone_number" => $data->phone ?? null,
-                        "email" => $data->email,
-                        "position" => !empty($data->position) ? $data->position : "Owner",
-                        "created_at" => $now
-                    ];
-                    $supabase->insert("vendor_contacts", $contact_data);
+                    $cart_sql = "INSERT INTO cart (customer_id, created_at) VALUES (:customer_id, :created_at)";
+                    $database->executeQuery($cart_sql, [
+                        ':customer_id' => $user_id,
+                        ':created_at' => $now
+                    ]);
+                } elseif ($role === 'vendor') {
+                    // Insert into vendors table
+                    $business_name = !empty($data->business_name) ? $data->business_name : "New Business";
+                    $vendor_sql = "INSERT INTO vendors (id, business_name, description, business_category, created_at) 
+                                 VALUES (:id, :business_name, :description, :business_category, :created_at)";
+                    $database->executeQuery($vendor_sql, [
+                        ':id' => $user_id,
+                        ':business_name' => $business_name,
+                        ':description' => $data->business_description ?? null,
+                        ':business_category' => $data->business_category ?? null,
+                        ':created_at' => $now
+                    ]);
+
+                    // Insert into vendor_contacts table
+                    $contact_sql = "INSERT INTO vendor_contacts (id, first_name, middle_name, last_name, suffix, phone_number, email, position, created_at) 
+                                  VALUES (:id, :first_name, :middle_name, :last_name, :suffix, :phone_number, :email, :position, :created_at)";
+                    $database->executeQuery($contact_sql, [
+                        ':id' => $user_id,
+                        ':first_name' => $data->first_name,
+                        ':middle_name' => $data->middle_name ?? null,
+                        ':last_name' => $data->last_name,
+                        ':suffix' => $data->suffix ?? null,
+                        ':phone_number' => $data->phone ?? null,
+                        ':email' => $data->email,
+                        ':position' => !empty($data->position) ? $data->position : "Owner",
+                        ':created_at' => $now
+                    ]);
 
                     $response['vendor_id'] = $user_id;
-                    $response['business_name'] = $vendor_data['business_name'];
+                    $response['business_name'] = $business_name;
                 }
+
+                $db->commit();
             } catch (Exception $e) {
+                $db->rollback();
                 error_log("Secondary profile creation failed for user $user_id: " . $e->getMessage());
+                throw $e;
             }
 
             echo json_encode($response);
         } else {
+            $db->rollback();
             http_response_code(500);
             echo json_encode(["status" => "error", "message" => "Registration failed"]);
         }
     } catch (Exception $e) {
+        if ($db->inTransaction()) {
+            $db->rollback();
+        }
         http_response_code(500);
         echo json_encode(["status" => "error", "message" => "Database error: " . $e->getMessage()]);
     }
