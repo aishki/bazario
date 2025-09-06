@@ -1,6 +1,7 @@
 class Constants {
   static const String appName = 'Bazario';
-  static const String apiBaseUrl = 'https://aishki.helioho.st/php_backend/api';
+  static const String apiBaseUrl =
+      'https://bazario-backend-aszl.onrender.com/api';
 
   // Colors
   static const int primaryColorValue = 0xFF4CAF50;

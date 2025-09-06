@@ -212,11 +212,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       print("[v0] Starting registration request...");
-      print("[v0] API URL: https://aishki.helioho.st/php_backend/api/auth.php");
+      print(
+        "[v0] API URL: https://bazario-backend-aszl.onrender.com/api/auth.php",
+      );
 
       final response = await http
           .post(
-            Uri.parse('https://aishki.helioho.st/php_backend/api/auth.php'),
+            Uri.parse('https://bazario-backend-aszl.onrender.com/api/auth.php'),
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
