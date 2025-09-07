@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'register_screen.dart';
-import 'customer_dashboard.dart';
+import 'customer/customer_dashboard.dart';
 import '../components/vendor_navbar.dart';
 
 class LoginScreen extends StatefulWidget {
