@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'register_screen.dart';
 import 'customer_dashboard.dart';
-import 'vendor_dashboard.dart';
+import '../components/vendor_navbar.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://aishki.helioho.st/php_backend/api/auth.php'),
+        Uri.parse('https://bazario-backend-aszl.onrender.com/api/auth.php'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'action': 'login',
@@ -59,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
             if (responseData['role'] == 'vendor') {
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
-                  builder: (context) => VendorDashboard(
+                  builder: (context) => VendorNavBar(
                     userId: responseData['user_id'],
                     vendorId: responseData['vendor_id'],
                     businessName:
