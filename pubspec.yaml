@@ -14,6 +14,8 @@ dependencies:
   supabase_flutter: ^2.0.0
   flutter_dotenv: ^5.0.2
   http: ^1.1.0
+  flutter_svg: ^2.0.9
+  iconify_flutter: ^0.0.7
 
 dev_dependencies:
   flutter_test:
