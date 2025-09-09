@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../screens/notifications_screen.dart';
-import '../screens/vendor_dashboard.dart';
-import '../screens/vendor_profile_screen.dart';
+import '../screens/vendor/v_notifications_screen.dart';
+import '../screens/vendor/v_dashboard.dart';
+import '../screens/vendor/v_profile_screen.dart';
 
 class VendorNavBar extends StatefulWidget {
   final String userId;
