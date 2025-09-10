@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:iconify_flutter/iconify_flutter.dart';
-import 'package:iconify_flutter/icons/heroicons.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'v_my_shop_screen.dart';
+import 'v_my_docs_screen.dart';
+import 'v_pop_ups_screen.dart';
+import 'v_notifs_screen.dart';
 
 class VendorDashboard extends StatelessWidget {
   final String userId;
@@ -47,18 +50,18 @@ class VendorDashboard extends StatelessWidget {
                 children: [
                   // Profile image
                   Container(
-                    width: 70,
-                    height: 70,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: const Color(0xFFE8685B),
-                        width: 3,
+                        width: 2,
                       ),
                       image: DecorationImage(
                         image: logoUrl != null && logoUrl!.isNotEmpty
                             ? NetworkImage(logoUrl!)
-                            : const AssetImage("lib/assets/images/logo_img.png")
+                            : const AssetImage("lib/assets/images/logo_img.jpg")
                                   as ImageProvider,
                         fit: BoxFit.cover,
                       ),
@@ -72,18 +75,17 @@ class VendorDashboard extends StatelessWidget {
                       children: [
                         Text(
                           "Maayong Adlaw!",
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontFamily: 'Starla',
-                            fontSize: 18,
+                            fontSize: 16,
                             color: Color(0xFFFF390F),
                           ),
                         ),
-                        const SizedBox(height: 4),
                         Text(
                           businessName,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontFamily: 'Starla',
-                            fontSize: 16,
+                            fontSize: 20,
                             color: Color(0xFFE8685B),
                           ),
                         ),
@@ -102,48 +104,36 @@ class VendorDashboard extends StatelessWidget {
               runSpacing: 16,
               children: [
                 _buildDashboardBox(
+                  context,
                   color: const Color(0xFFF9FFBA), // Yellow
-                  borderColor: const Color(0xFFFFD400), // Dark yellow
-                  icon: const Iconify(Heroicons.play_circle),
+                  borderColor: const Color(0xFFFFD400),
+                  imagePath: "lib/assets/images/my-shop-banner.png",
                   label: "My Shop",
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('My Shop coming soon')),
-                    );
-                  },
+                  page: VendorMyShop(),
                 ),
                 _buildDashboardBox(
+                  context,
                   color: const Color(0xFFD8FEA5), // Green
-                  borderColor: const Color(0xFF74CC00), // Dark green
-                  icon: const Iconify(Heroicons.play_circle),
+                  borderColor: const Color(0xFF74CC00),
+                  imagePath: "lib/assets/images/pop-ups-banner.png",
                   label: "Pop-ups",
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Pop-ups coming soon')),
-                    );
-                  },
+                  page: VendorPopUps(),
                 ),
                 _buildDashboardBox(
+                  context,
                   color: const Color(0xFFBEDCFF), // Blue
-                  borderColor: const Color(0xFF045DC4), // Dark blue
-                  icon: const Iconify(Heroicons.play_circle),
+                  borderColor: const Color(0xFF045DC4),
+                  imagePath: "lib/assets/images/my-docs-banner.png",
                   label: "My Docs",
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('My Docs coming soon')),
-                    );
-                  },
+                  page: VendorMyDocs(),
                 ),
                 _buildDashboardBox(
+                  context,
                   color: const Color(0xFFFFD498), // Orange
-                  borderColor: const Color(0xFFFF9E17), // Dark orange
-                  icon: const Iconify(Heroicons.play_circle),
+                  borderColor: const Color(0xFFFF9E17),
+                  imagePath: "lib/assets/images/notifs-banner.png",
                   label: "Notifs",
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Notifs coming soon')),
-                    );
-                  },
+                  page: VendorNotifs(),
                 ),
               ],
             ),
@@ -153,29 +143,69 @@ class VendorDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildDashboardBox({
+  Widget _buildDashboardBox(
+    BuildContext context, {
     required Color color,
     required Color borderColor,
-    required Widget icon,
+    required String imagePath,
     required String label,
-    required VoidCallback onTap,
+    required Widget page,
   }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+      },
       child: Container(
         width: 150,
         height: 180,
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor, width: 2),
+          border: Border.all(color: borderColor, width: 3),
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            icon,
-            const SizedBox(height: 12),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            // Banner Image with border
+            Container(
+              width: 115,
+              height: 84,
+              decoration: BoxDecoration(
+                border: Border.all(color: borderColor, width: 2),
+                borderRadius: BorderRadius.circular(8),
+                image: DecorationImage(
+                  image: AssetImage(imagePath),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // SVG Icon (with color from border)
+            SvgPicture.asset(
+              "lib/assets/icons/play-circle.svg",
+              width: 22,
+              height: 22,
+              colorFilter: ColorFilter.mode(borderColor, BlendMode.srcIn),
+            ),
+
+            // Divider line
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+              child: Divider(thickness: 1.5, color: borderColor),
+            ),
+
+            // Title
+            Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontFamily: 'Bagel Fat One', // from assets/fonts
+                fontSize: 20,
+                color: borderColor,
+              ),
+            ),
           ],
         ),
       ),
