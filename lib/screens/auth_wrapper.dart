@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'welcome_screen.dart';
-import 'customer/customer_dashboard.dart';
+import 'customer/c_dashboard.dart';
 import '../services/auth_service.dart';
 
 class AuthWrapper extends StatefulWidget {
