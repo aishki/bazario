@@ -35,6 +35,23 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> put(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/$endpoint'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(data),
+      );
+
+      return _handleResponse(response);
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
   Map<String, dynamic> _handleResponse(http.Response response) {
     final Map<String, dynamic> data = json.decode(response.body);
 

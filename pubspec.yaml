@@ -16,6 +16,8 @@ dependencies:
   http: ^1.1.0
   flutter_svg: ^2.0.9
   iconify_flutter: ^0.0.7
+  solar_icons: ^0.0.5
+  iconify_design: ^1.0.1
 
 dev_dependencies:
   flutter_test:

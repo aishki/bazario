@@ -4,17 +4,21 @@ import 'v_my_shop_screen.dart';
 import 'v_my_docs_screen.dart';
 import 'v_pop_ups_screen.dart';
 import 'v_notifs_screen.dart';
+import '../../models/vendor.dart';
+import '../../components/vendor_navbar.dart';
 
 class VendorDashboard extends StatelessWidget {
   final String userId;
   final String vendorId;
   final String businessName;
   final String? logoUrl;
+  final Vendor vendor;
 
   const VendorDashboard({
     super.key,
     required this.userId,
     required this.vendorId,
+    required this.vendor,
     required this.businessName,
     this.logoUrl,
   });
@@ -109,7 +113,7 @@ class VendorDashboard extends StatelessWidget {
                   borderColor: const Color(0xFFFFD400),
                   imagePath: "lib/assets/images/my-shop-banner.png",
                   label: "My Shop",
-                  page: VendorMyShop(),
+                  page: VendorMyShop(key: UniqueKey(), vendor: vendor),
                 ),
                 _buildDashboardBox(
                   context,
@@ -153,7 +157,7 @@ class VendorDashboard extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => page));
       },
       child: Container(
         width: 150,

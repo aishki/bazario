@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../screens/vendor/v_notifications_screen.dart';
-import '../screens/vendor/v_dashboard.dart';
 import '../screens/vendor/v_profile_screen.dart';
+import '../screens/vendor/v_dashboard.dart';
+import '../models/vendor.dart';
 
 class VendorNavBar extends StatefulWidget {
   final String userId;
   final String vendorId;
   final String businessName;
+  final Vendor vendor;
 
   const VendorNavBar({
     super.key,
     required this.userId,
     required this.vendorId,
     required this.businessName,
+    required this.vendor,
   });
 
   @override
@@ -31,6 +34,7 @@ class _VendorNavBarState extends State<VendorNavBar> {
         userId: widget.userId,
         vendorId: widget.vendorId,
         businessName: widget.businessName,
+        vendor: widget.vendor,
       ),
       const VendorProfileScreen(),
     ];

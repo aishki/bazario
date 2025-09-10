@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'register_screen.dart';
 import 'customer/c_dashboard.dart';
 import '../components/vendor_navbar.dart';
+import '../models/vendor.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -64,6 +65,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     vendorId: responseData['vendor_id'],
                     businessName:
                         responseData['business_name'] ?? 'My Business',
+                    vendor: responseData['vendor'] != null
+                        ? Vendor.fromJson(responseData['vendor'])
+                        : Vendor.minimal(
+                            id: responseData['vendor_id'] ?? '',
+                            businessName:
+                                responseData['business_name'] ?? 'My Business',
+                          ),
                   ),
                 ),
               );
