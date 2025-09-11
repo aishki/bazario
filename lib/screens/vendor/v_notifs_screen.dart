@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
+import '../../models/vendor.dart';
 
 class VendorNotifs extends StatelessWidget {
-  const VendorNotifs({Key? key}) : super(key: key);
+  final String userId;
+  final String vendorId;
+  final String businessName;
+  final Vendor vendor;
+
+  const VendorNotifs({
+    super.key,
+    required this.userId,
+    required this.vendorId,
+    required this.businessName,
+    required this.vendor,
+  });
 
   @override
   Widget build(BuildContext context) {
