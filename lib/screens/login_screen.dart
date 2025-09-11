@@ -5,6 +5,7 @@ import 'register_screen.dart';
 import 'customer/c_dashboard.dart';
 import '../components/vendor_navbar.dart';
 import '../models/vendor.dart';
+import '../models/vendor_contact.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -58,6 +59,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
             // Navigate based on role
             if (responseData['role'] == 'vendor') {
+              final vendor = Vendor(
+                id: responseData['vendor_id'] ?? responseData['id'] ?? '',
+                businessName: responseData['business_name'] ?? 'Unknown',
+                description: responseData['description'],
+                businessCategory: responseData['business_category'],
+                logoUrl: responseData['logo_url'],
+                verified:
+                    responseData['verified'] == true ||
+                    responseData['verified'] == 1,
+                socialLinks: SocialLinks.fromJson(
+                  responseData['social_links'] ?? {},
+                ),
+                createdAt:
+                    DateTime.tryParse(responseData['created_at'] ?? '') ??
+                    DateTime.now(),
+                contact: responseData['contact_info'] != null
+                    ? VendorContact.fromJson(responseData['contact_info'])
+                    : null,
+                contactDisplayPreferences: ContactDisplayPreferences.fromJson(
+                  responseData['contact_display_preferences'] ?? {},
+                ),
+              );
+
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
                   builder: (context) => VendorNavBar(
@@ -65,13 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     vendorId: responseData['vendor_id'],
                     businessName:
                         responseData['business_name'] ?? 'My Business',
-                    vendor: responseData['vendor'] != null
-                        ? Vendor.fromJson(responseData['vendor'])
-                        : Vendor.minimal(
-                            id: responseData['vendor_id'] ?? '',
-                            businessName:
-                                responseData['business_name'] ?? 'My Business',
-                          ),
+                    vendor: vendor,
                   ),
                 ),
               );
