@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../screens/vendor/v_notifications_screen.dart';
+import '../screens/vendor/v_nav_notifications_screen.dart';
 import '../screens/vendor/v_profile_screen.dart';
 import '../screens/vendor/v_dashboard.dart';
 import '../models/vendor.dart';
@@ -29,20 +29,61 @@ class _VendorNavBarState extends State<VendorNavBar> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> _screens = [
-      const NotificationsScreen(),
+      const VendorNotificationsScreen(),
       VendorDashboard(
         userId: widget.userId,
         vendorId: widget.vendorId,
         businessName: widget.businessName,
         vendor: widget.vendor,
       ),
-      const VendorProfileScreen(),
+      VendorProfileScreen(
+        userId: widget.userId,
+        vendorId: widget.vendorId,
+        businessName: widget.businessName,
+      ),
     ];
 
-    return Scaffold(
-      extendBody: true,
-      body: _screens[_currentIndex],
-      bottomNavigationBar: _buildCustomNavBar(),
+    return WillPopScope(
+      onWillPop: () async {
+        // Instead, minimize the app or show exit confirmation
+        if (_currentIndex != 1) {
+          // If not on home screen, go to home screen
+          setState(() {
+            _currentIndex = 1;
+          });
+          return false;
+        } else {
+          // If on home screen, show exit confirmation
+          return await _showExitConfirmation(context) ?? false;
+        }
+      },
+      child: Scaffold(
+        extendBody: true,
+        body: _screens[_currentIndex],
+        bottomNavigationBar: _buildCustomNavBar(),
+      ),
+    );
+  }
+
+  Future<bool?> _showExitConfirmation(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Exit App'),
+          content: const Text('Are you sure you want to exit the app?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Exit'),
+            ),
+          ],
+        );
+      },
     );
   }
 
