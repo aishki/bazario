@@ -25,6 +25,9 @@ class VendorDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Debug print for Vendor
+    debugPrint("[VendorDashboard] Current Vendor: ${vendor.toJson()}");
+
     return Container(
       height: MediaQuery.of(context).size.height,
       decoration: const BoxDecoration(
@@ -63,8 +66,9 @@ class VendorDashboard extends StatelessWidget {
                         width: 2,
                       ),
                       image: DecorationImage(
-                        image: logoUrl != null && logoUrl!.isNotEmpty
-                            ? NetworkImage(logoUrl!)
+                        image:
+                            vendor.logoUrl != null && vendor.logoUrl!.isNotEmpty
+                            ? NetworkImage(vendor.logoUrl!)
                             : const AssetImage("lib/assets/images/logo_img.jpg")
                                   as ImageProvider,
                         fit: BoxFit.cover,
@@ -113,7 +117,12 @@ class VendorDashboard extends StatelessWidget {
                   borderColor: const Color(0xFFFFD400),
                   imagePath: "lib/assets/images/my-shop-banner.png",
                   label: "My Shop",
-                  page: VendorMyShop(key: UniqueKey(), vendor: vendor),
+                  page: VendorMyShop(
+                    vendor: vendor,
+                    userId: userId,
+                    vendorId: vendorId,
+                    businessName: businessName,
+                  ),
                 ),
                 _buildDashboardBox(
                   context,
@@ -121,7 +130,12 @@ class VendorDashboard extends StatelessWidget {
                   borderColor: const Color(0xFF74CC00),
                   imagePath: "lib/assets/images/pop-ups-banner.png",
                   label: "Pop-ups",
-                  page: VendorPopUps(),
+                  page: VendorPopUps(
+                    userId: userId,
+                    vendorId: vendorId,
+                    businessName: businessName,
+                    vendor: vendor,
+                  ),
                 ),
                 _buildDashboardBox(
                   context,
@@ -129,7 +143,12 @@ class VendorDashboard extends StatelessWidget {
                   borderColor: const Color(0xFF045DC4),
                   imagePath: "lib/assets/images/my-docs-banner.png",
                   label: "My Docs",
-                  page: VendorMyDocs(),
+                  page: VendorMyDocs(
+                    userId: userId,
+                    vendorId: vendorId,
+                    businessName: businessName,
+                    vendor: vendor,
+                  ),
                 ),
                 _buildDashboardBox(
                   context,
@@ -137,7 +156,12 @@ class VendorDashboard extends StatelessWidget {
                   borderColor: const Color(0xFFFF9E17),
                   imagePath: "lib/assets/images/notifs-banner.png",
                   label: "Notifs",
-                  page: VendorNotifs(),
+                  page: VendorNotifs(
+                    userId: userId,
+                    vendorId: vendorId,
+                    businessName: businessName,
+                    vendor: vendor,
+                  ),
                 ),
               ],
             ),
