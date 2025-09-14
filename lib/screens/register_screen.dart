@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; //for input formatters char limit
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -43,7 +44,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _errorMessage;
   bool _isLoading = false;
 
-  // ✅ Personal Info + Vendor TextField builder
   Widget _buildFloatingTextField({
     required String label,
     required String hint,
@@ -51,59 +51,86 @@ class _RegisterScreenState extends State<RegisterScreen> {
     bool isPersonalInfo = false,
     TextInputType keyboardType = TextInputType.text,
     Color? fillColor,
+    int? maxLines, // NEW: allows multi-line fields
+    int? maxLength, // NEW: character limit (180)
+    List<TextInputFormatter>? inputFormatters, // NEW: custom formatters
+    double? height, // NEW: force a fixed height if desired
   }) {
-    return SizedBox(
-      height: 35,
-      child: TextField(
-        controller: controller,
-        style: TextStyle(
+    // If maxLength provided and no explicit inputFormatters, inject limiting formatter
+    final List<TextInputFormatter>? effectiveFormatters =
+        inputFormatters ??
+        (maxLength != null
+            ? [LengthLimitingTextInputFormatter(maxLength)]
+            : null);
+
+    final int effectiveMaxLines = maxLines ?? 1;
+
+    final textField = TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: effectiveMaxLines,
+      inputFormatters: effectiveFormatters,
+      style: TextStyle(
+        fontFamily: 'Poppins',
+        fontSize: 11,
+        color: isPersonalInfo ? const Color(0xFF74CC00) : Colors.black,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(
           fontFamily: 'Poppins',
           fontSize: 11,
-          color: isPersonalInfo ? const Color(0xFF74CC00) : Colors.black,
+          color: isPersonalInfo ? const Color(0xFF74CC00) : Colors.black54,
         ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 11,
-            color: isPersonalInfo ? const Color(0xFF74CC00) : Colors.black54,
-          ),
-          floatingLabelBehavior: FloatingLabelBehavior.auto,
-          hintText: hint,
-          hintStyle: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 11,
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
+        hintText: hint,
+        hintStyle: TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: 11,
+          color: isPersonalInfo
+              ? const Color(0xFF74CC00).withOpacity(0.6)
+              : Colors.black54,
+        ),
+        filled: true,
+        fillColor:
+            fillColor ??
+            (isPersonalInfo ? Colors.white : const Color(0xFFDBFFAC)),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: effectiveMaxLines > 1 ? 12 : 8,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: BorderSide(
             color: isPersonalInfo
-                ? const Color(0xFF74CC00).withOpacity(0.6)
-                : Colors.black54,
-          ),
-          filled: true,
-          fillColor:
-              fillColor ??
-              (isPersonalInfo ? Colors.white : const Color(0xFFDBFFAC)),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 8,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5),
-            borderSide: BorderSide(
-              color: isPersonalInfo
-                  ? const Color(0xFF276700)
-                  : Colors.transparent,
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5),
-            borderSide: BorderSide(
-              color: isPersonalInfo
-                  ? const Color(0xFF276700)
-                  : Colors.transparent,
-            ),
+                ? const Color(0xFF276700)
+                : Colors.transparent,
           ),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: BorderSide(
+            color: isPersonalInfo
+                ? const Color(0xFF276700)
+                : Colors.transparent,
+          ),
+        ),
+        // show native counter if maxLength is set (you can hide with counterText: '')
+        counterText: maxLength != null ? null : '',
       ),
     );
+
+    if (height != null) {
+      return SizedBox(height: height, child: textField);
+    }
+
+    // For single-line fields keep the original compact height
+    if (effectiveMaxLines == 1) {
+      return SizedBox(height: 35, child: textField);
+    }
+
+    // For multi-line fields return the TextField directly (it will size naturally)
+    return textField;
   }
 
   // ✅ Username & Password builder with external label
@@ -506,9 +533,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       dense: true,
                                       contentPadding: EdgeInsets.zero,
                                       visualDensity: VisualDensity.compact,
-                                      title: const Text(
-                                        "Customer",
-                                        style: TextStyle(fontSize: 12),
+                                      title: Transform.translate(
+                                        offset: const Offset(
+                                          -15,
+                                          0,
+                                        ), //move text closer to radio
+                                        child: const Text(
+                                          "Customer",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontFamily: 'Poppins',
+                                          ),
+                                        ),
                                       ),
                                       value: "Customer",
                                       groupValue: _selectedRole,
@@ -519,13 +555,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   Expanded(
                                     child: RadioListTile<String>(
                                       dense: true,
-                                      visualDensity: const VisualDensity(
-                                        horizontal: -4,
-                                        vertical: -4,
-                                      ),
-                                      title: const Text(
-                                        "Vendor",
-                                        style: TextStyle(fontSize: 12),
+                                      contentPadding: EdgeInsets.zero,
+                                      visualDensity: VisualDensity.compact,
+                                      title: Transform.translate(
+                                        offset: const Offset(
+                                          -15,
+                                          0,
+                                        ), // move text closer to radio
+                                        child: const Text(
+                                          "Vendor",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontFamily: 'Poppins',
+                                          ),
+                                        ),
                                       ),
                                       value: "Vendor",
                                       groupValue: _selectedRole,
@@ -632,6 +675,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   label: "Short Business Description",
                                   hint: "e.g. We sell organic coffee",
                                   controller: _businessDescriptionController,
+                                  keyboardType: TextInputType.multiline,
+                                  maxLines: 5,
+                                  inputFormatters: [
+                                    LengthLimitingTextInputFormatter(180),
+                                  ],
                                 ),
                               ],
 
@@ -670,41 +718,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                 ),
 
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF74CC00),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                      horizontal: 10,
+                              Align(
+                                alignment: Alignment.center,
+                                child: SizedBox(
+                                  width: 150,
+                                  height: 40,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF74CC00),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                        horizontal: 8,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(27),
+                                      ),
                                     ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                                    onPressed: _isLoading
+                                        ? null
+                                        : _registerUser,
+                                    child: _isLoading
+                                        ? const SizedBox(
+                                            height: 20,
+                                            width: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          )
+                                        : const Text(
+                                            "Register",
+                                            style: TextStyle(
+                                              fontFamily: 'Bagel Fat One',
+                                              fontSize: 16,
+                                            ),
+                                          ),
                                   ),
-                                  onPressed: _isLoading ? null : _registerUser,
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          height: 20,
-                                          width: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
-                                                ),
-                                          ),
-                                        )
-                                      : const Text(
-                                          "Register",
-                                          style: TextStyle(
-                                            fontFamily: 'Bagel Fat One',
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
                                 ),
                               ),
 
