@@ -56,7 +56,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     List<TextInputFormatter>? inputFormatters, // NEW: custom formatters
     double? height, // NEW: force a fixed height if desired
   }) {
-    // If maxLength provided and no explicit inputFormatters, inject limiting formatter
+    // If maxLength provided and no explicit inputFormatters, inject/use limiting formatter
     final List<TextInputFormatter>? effectiveFormatters =
         inputFormatters ??
         (maxLength != null
