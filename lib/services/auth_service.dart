@@ -1,14 +1,26 @@
 import 'api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   final ApiService _apiService = ApiService();
+  static const String _userIdKey = 'user_id';
+  static const String _userRoleKey = 'user_role';
+  static const String _vendorIdKey = 'vendor_id';
+  static const String _businessNameKey = 'business_name';
+  static const String _isLoggedInKey = 'is_logged_in';
 
   Future<Map<String, dynamic>> login(String email, String password) async {
-    return await _apiService.post('auth.php', {
+    final response = await _apiService.post('auth.php', {
       'action': 'login',
       'email': email,
       'password': password,
     });
+
+    if (response['success'] == true && response['user'] != null) {
+      await _storeUserSession(response['user']);
+    }
+
+    return response;
   }
 
   Future<Map<String, dynamic>> register(Map<String, dynamic> userData) async {
@@ -18,30 +30,53 @@ class AuthService {
     });
   }
 
-  Future<void> logout() async {
-    // Clear any stored authentication tokens or user data
-    // This can be expanded when implementing token-based authentication
-    try {
-      // Future: Call logout endpoint if implementing server-side session management
-      // await _apiService.post('auth.php', {'action': 'logout'});
+  Future<void> _storeUserSession(Map<String, dynamic> user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userIdKey, user['id'] ?? '');
+    await prefs.setString(_userRoleKey, user['role'] ?? '');
+    await prefs.setString(_vendorIdKey, user['vendor_id'] ?? '');
+    await prefs.setString(_businessNameKey, user['business_name'] ?? '');
+    await prefs.setBool(_isLoggedInKey, true);
 
-      // Clear local storage/preferences here
-      print('User logged out successfully');
+    print('[v0] User session stored successfully');
+  }
+
+  Future<Map<String, dynamic>?> getUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool(_isLoggedInKey) ?? false;
+
+    if (!isLoggedIn) return null;
+
+    return {
+      'id': prefs.getString(_userIdKey) ?? '',
+      'role': prefs.getString(_userRoleKey) ?? '',
+      'vendor_id': prefs.getString(_vendorIdKey) ?? '',
+      'business_name': prefs.getString(_businessNameKey) ?? '',
+    };
+  }
+
+  Future<void> logout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_userIdKey);
+      await prefs.remove(_userRoleKey);
+      await prefs.remove(_vendorIdKey);
+      await prefs.remove(_businessNameKey);
+      await prefs.setBool(_isLoggedInKey, false);
+
+      print('[v0] User session cleared successfully');
     } catch (e) {
-      print('Logout error: $e');
-      // Even if server logout fails, clear local data
+      print('[v0] Logout error: $e');
     }
   }
 
   Future<bool> isAuthenticated() async {
-    // Future: Implement token validation
-    // For now, return false - implement based on your token storage strategy
-    return false;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_isLoggedInKey) ?? false;
   }
 
-  static bool isLoggedIn() {
-    // For now, return false - this will be updated when implementing proper session management
-    // Future: Check stored tokens or session data
-    return false;
+  static Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_isLoggedInKey) ?? false;
   }
 }
