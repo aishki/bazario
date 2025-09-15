@@ -444,9 +444,20 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                         builder: (context, snapshot) {
                                           if (snapshot.connectionState ==
                                               ConnectionState.waiting) {
-                                            return const Center(
-                                              child:
-                                                  CircularProgressIndicator(),
+                                            return Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 100,
+                                                  ), // top + bottom
+                                              child: Center(
+                                                child:
+                                                    LoadingAnimationWidget.inkDrop(
+                                                      color: const Color(
+                                                        0xFFDD602D,
+                                                      ),
+                                                      size: 50,
+                                                    ),
+                                              ),
                                             );
                                           } else if (snapshot.hasError) {
                                             return const Center(
