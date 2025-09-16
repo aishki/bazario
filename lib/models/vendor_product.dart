@@ -1,8 +1,8 @@
 class VendorProduct {
   final String id;
   final String vendorId;
-  final String name;
-  final String? description;
+  String? name;
+  String? description;
   final String? imageUrl;
   final bool isFeatured;
   final DateTime createdAt;
@@ -27,5 +27,16 @@ class VendorProduct {
       isFeatured: json['is_featured'] == true || json['is_featured'] == 1,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     );
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      "id": id,
+      "vendor_id": vendorId,
+      "name": name,
+      "description": description,
+      "image_url": imageUrl,
+      "is_featured": isFeatured ? 1 : 0,
+      "created_at": createdAt.toIso8601String(),
+    };
   }
 }
