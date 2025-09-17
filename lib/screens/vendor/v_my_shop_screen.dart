@@ -1579,31 +1579,44 @@ class _VendorMyShopState extends State<VendorMyShop> {
     );
   }
 
-  void _confirmDelete(BuildContext context, VendorProduct product) {
+  void _confirmDelete(BuildContext pageContext, VendorProduct product) {
     showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Confirm Deletion"),
-        content: const Text("Are you sure you want to delete this product?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () async {
-              // Call delete API here
-              setState(() {
-                // Remove from local list too
-                // products.remove(product);
-              });
-              Navigator.pop(ctx);
-              await _loadVendorProducts();
-            },
-            child: const Text("Delete"),
-          ),
-        ],
-      ),
+      context: context, // <- parent page context
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text("Delete Product"),
+          content: Text("Are you sure you want to delete this product?"),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx); // Close dialog immediately
+
+                final success = await _vendorService.deleteProduct(product.id);
+
+                if (!mounted) return;
+
+                if (success) {
+                  await _loadVendorProducts();
+
+                  // ✅ Use parent `context`, not ctx
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Product deleted successfully")),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Failed to delete product")),
+                  );
+                }
+              },
+              child: Text("Delete"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text("Cancel"),
+            ),
+          ],
+        );
+      },
     );
   }
 
