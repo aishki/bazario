@@ -52,6 +52,23 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> delete(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/$endpoint'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(data), // send { "id": ... } in request body
+      );
+
+      return _handleResponse(response);
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
   Map<String, dynamic> _handleResponse(http.Response response) {
     final Map<String, dynamic> data = json.decode(response.body);
 

@@ -69,4 +69,16 @@ class VendorService {
       return false;
     }
   }
+
+  Future<bool> deleteProduct(String productId) async {
+    try {
+      final response = await _apiService.delete('vendor_products.php', {
+        "id": productId,
+      });
+      return response['success'] == true;
+    } catch (e) {
+      print('[v0] Error deleting product: $e');
+      return false;
+    }
+  }
 }
