@@ -1,6 +1,5 @@
 import 'api_service.dart';
 import '../models/vendor.dart';
-import '../models/user.dart';
 import '../models/vendor_product.dart';
 
 class VendorService {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../../components/string_extensions.dart';
 import '../../models/vendor.dart';
 import '../../models/vendor_contact.dart';
 import '../../models/vendor_product.dart';
@@ -33,17 +34,21 @@ class VendorMyShop extends StatefulWidget {
 }
 
 class _VendorMyShopState extends State<VendorMyShop> {
+  final List<VendorProduct> _products = [];
   final VendorService _vendorService = VendorService();
   final CloudinaryService _cloudinaryService = CloudinaryService();
   final ImagePicker _imagePicker = ImagePicker();
   bool _isLoading = false;
+  bool _isEditMode = false;
   bool _isUploadingImage = false;
   Vendor? _currentVendor;
+  VendorProduct? _currentlyEditingProduct;
 
   @override
   void initState() {
     super.initState();
     _currentVendor = widget.vendor;
+    _loadVendorProducts();
   }
 
   @override
@@ -379,8 +384,22 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                             _openEditShopDetails(context),
                                       ),
                                       _buildActionButton(
-                                        label: "EDIT TOP PRODUCTS",
-                                        onTap: () {},
+                                        label: _isEditMode
+                                            ? "SAVE CHANGES"
+                                            : "EDIT TOP PRODUCTS",
+                                        onTap: () {
+                                          if (_isEditMode &&
+                                              _currentlyEditingProduct !=
+                                                  null) {
+                                            _saveProductChanges(
+                                              _currentlyEditingProduct!,
+                                            );
+                                          } else {
+                                            setState(() {
+                                              _isEditMode = true;
+                                            });
+                                          }
+                                        },
                                       ),
                                     ],
                                   ),
@@ -477,22 +496,32 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                             );
                                           }
 
-                                          final products = snapshot.data!;
-                                          return ListView.builder(
-                                            shrinkWrap:
-                                                true, // 👈 make it take only needed height
+                                          final _products = snapshot.data!;
+                                          return ReorderableListView.builder(
+                                            shrinkWrap: true,
                                             physics:
-                                                const NeverScrollableScrollPhysics(), // 👈 prevent double scroll
-                                            padding: EdgeInsets.fromLTRB(
-                                              0,
-                                              13,
-                                              0,
-                                              0,
+                                                const NeverScrollableScrollPhysics(),
+                                            padding: const EdgeInsets.only(
+                                              top: 13,
                                             ),
-                                            itemCount: products.length,
+                                            itemCount: _products.length,
+                                            onReorder: (oldIndex, newIndex) {
+                                              setState(() {
+                                                if (newIndex > oldIndex)
+                                                  newIndex--;
+                                                final item = _products.removeAt(
+                                                  oldIndex,
+                                                );
+                                                _products.insert(
+                                                  newIndex,
+                                                  item,
+                                                );
+                                              });
+                                            },
                                             itemBuilder: (context, index) {
-                                              final product = products[index];
+                                              final product = _products[index];
                                               return Container(
+                                                key: ValueKey(product.id),
                                                 margin: const EdgeInsets.only(
                                                   bottom: 10,
                                                 ),
@@ -500,94 +529,142 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                                   10,
                                                 ),
                                                 decoration: BoxDecoration(
-                                                  color: const Color(
-                                                    0xFFDD602D,
-                                                  ),
+                                                  color: _isEditMode
+                                                      ? const Color(0xFF792401)
+                                                      : const Color(0xFFDD602D),
                                                   borderRadius:
                                                       BorderRadius.circular(8),
                                                 ),
-                                                child: Row(
+                                                child: Stack(
                                                   children: [
-                                                    // Product image
-                                                    Container(
-                                                      width: 90,
-                                                      height: 90,
-                                                      decoration: BoxDecoration(
-                                                        border: Border.all(
-                                                          color: const Color(
-                                                            0xFFFFD800,
-                                                          ),
-                                                          width: 4,
-                                                        ),
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              5,
-                                                            ),
-                                                        image: DecorationImage(
-                                                          image: NetworkImage(
-                                                            product.imageUrl ??
-                                                                "https://via.placeholder.com/150",
-                                                          ),
-                                                          fit: BoxFit.cover,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 16),
-                                                    // Description
-                                                    Expanded(
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          const Text(
-                                                            "PRODUCT DESCRIPTION",
-                                                            style: TextStyle(
-                                                              fontFamily:
-                                                                  "Starla",
-                                                              fontSize: 15,
+                                                    Row(
+                                                      children: [
+                                                        // Image
+                                                        Container(
+                                                          width: 90,
+                                                          height: 90,
+                                                          decoration: BoxDecoration(
+                                                            border: Border.all(
                                                               color:
-                                                                  Colors.white,
+                                                                  const Color(
+                                                                    0xFFFFD800,
+                                                                  ),
+                                                              width: 4,
                                                             ),
-                                                          ),
-                                                          const SizedBox(
-                                                            height: 6,
-                                                          ),
-                                                          Container(
-                                                            padding:
-                                                                const EdgeInsets.all(
-                                                                  8,
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  5,
                                                                 ),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  borderRadius:
-                                                                      BorderRadius.circular(
-                                                                        5,
-                                                                      ),
-                                                                ),
-                                                            child: Text(
-                                                              product.description ??
-                                                                  "No description",
-                                                              style: const TextStyle(
-                                                                fontSize: 11,
-                                                                color: Color(
-                                                                  0xDDDD602D,
-                                                                ),
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w500,
+                                                            image: DecorationImage(
+                                                              image: NetworkImage(
+                                                                product.imageUrl ??
+                                                                    "https://via.placeholder.com/150",
                                                               ),
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                              maxLines: 3,
+                                                              fit: BoxFit.cover,
                                                             ),
                                                           ),
-                                                        ],
-                                                      ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 16,
+                                                        ),
+
+                                                        // Details
+                                                        Expanded(
+                                                          child: Column(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              GestureDetector(
+                                                                onDoubleTap:
+                                                                    _isEditMode
+                                                                    ? () => _editProductField(
+                                                                        product,
+                                                                        "name",
+                                                                      )
+                                                                    : null,
+                                                                child: Text(
+                                                                  product.name ??
+                                                                      "No Name Provided",
+                                                                  style: const TextStyle(
+                                                                    fontFamily:
+                                                                        "Starla",
+                                                                    fontSize:
+                                                                        15,
+                                                                    color: Colors
+                                                                        .white,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              const SizedBox(
+                                                                height: 6,
+                                                              ),
+                                                              GestureDetector(
+                                                                onDoubleTap:
+                                                                    _isEditMode
+                                                                    ? () => _editProductField(
+                                                                        product,
+                                                                        "description",
+                                                                      )
+                                                                    : null,
+                                                                child: Container(
+                                                                  padding:
+                                                                      const EdgeInsets.all(
+                                                                        8,
+                                                                      ),
+                                                                  decoration: BoxDecoration(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                          5,
+                                                                        ),
+                                                                  ),
+                                                                  child: Text(
+                                                                    product.description ??
+                                                                        "No description",
+                                                                    style: const TextStyle(
+                                                                      fontSize:
+                                                                          11,
+                                                                      color: Color(
+                                                                        0xDDDD602D,
+                                                                      ),
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w500,
+                                                                    ),
+                                                                    overflow:
+                                                                        TextOverflow
+                                                                            .ellipsis,
+                                                                    maxLines: 3,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
+
+                                                    // Delete icon
+                                                    if (_isEditMode)
+                                                      Positioned(
+                                                        top: 0,
+                                                        right: 0,
+                                                        child: GestureDetector(
+                                                          onTap: () =>
+                                                              _confirmDelete(
+                                                                context,
+                                                                product,
+                                                              ),
+                                                          child: const Iconify(
+                                                            IconParkSolid
+                                                                .delete_key,
+                                                            size: 30,
+                                                            color: Colors.white,
+                                                          ),
+                                                        ),
+                                                      ),
                                                   ],
                                                 ),
                                               );
@@ -793,7 +870,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
             }
 
             return Container(
-              height: MediaQuery.of(context).size.height * 0.95,
+              height: MediaQuery.of(context).size.height * 0.80,
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1497,6 +1574,142 @@ class _VendorMyShopState extends State<VendorMyShop> {
               ),
             );
           },
+        );
+      },
+    );
+  }
+
+  void _confirmDelete(BuildContext context, VendorProduct product) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Confirm Deletion"),
+        content: const Text("Are you sure you want to delete this product?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () async {
+              // Call delete API here
+              setState(() {
+                // Remove from local list too
+                // products.remove(product);
+              });
+              Navigator.pop(ctx);
+              await _loadVendorProducts();
+            },
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _loadVendorProducts() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Assuming VendorService has a method to fetch vendor products
+      final products = await _vendorService.getTopProducts(widget.vendorId);
+
+      if (mounted) {
+        setState(() {
+          _products
+            ..clear()
+            ..addAll(products);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+      debugPrint("Error loading vendor products: $e");
+    }
+  }
+
+  Future<bool> _saveProductChanges(VendorProduct product) async {
+    final success = await _vendorService.updateTopProducts(product);
+    if (!mounted) return success;
+    if (success && mounted) {
+      setState(() {
+        _isEditMode = false;
+      });
+    }
+
+    return success;
+  }
+
+  // call signature: _editProductField(product, "name" / "description")
+  void _editProductField(VendorProduct product, String field) {
+    final controller = TextEditingController(
+      text: field == 'name' ? product.name : product.description,
+    );
+
+    // Use the State's `context` to create the dialog. Inside builder
+    // use `dialogCtx` to immediately pop/close the dialog.
+    showDialog(
+      context: context, // <- use State.context (safe)
+      builder: (dialogCtx) {
+        return AlertDialog(
+          title: Text("Edit ${field[0].toUpperCase()}${field.substring(1)}"),
+          content: TextField(
+            controller: controller,
+            maxLines: field == "description" ? 3 : 1,
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
+              hintText: "Enter $field",
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () async {
+                // 1) Close the dialog IMMEDIATELY with the dialog's ctx
+                Navigator.of(dialogCtx).pop();
+
+                // 2) Apply the change locally (optimistic update)
+                final newValue = controller.text.trim();
+                setState(() {
+                  if (field == "name") {
+                    product.name = newValue;
+                  } else {
+                    product.description = newValue;
+                  }
+                });
+
+                // 3) Persist asynchronously
+                final success = await _saveProductChanges(product);
+
+                // 4) If the widget is disposed while awaiting, bail out
+                if (!mounted) return;
+
+                // 5) Refresh the _products list safely (re-fetch)
+                await _loadVendorProducts();
+
+                // 6) Use the State.context (not item/dialog ctx) to show snackbar
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? "${field[0].toUpperCase()}${field.substring(1)} updated"
+                          : "Failed to update ${field}",
+                    ),
+                  ),
+                );
+              },
+              child: const Text("Save"),
+            ),
+          ],
         );
       },
     );
