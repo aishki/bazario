@@ -21,6 +21,8 @@ dependencies:
   cloudinary_url_gen: ^1.8.0
   image_picker: ^1.2.0
   loading_animation_widget: ^1.3.0
+  intl: ^0.20.2
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -44,3 +46,8 @@ flutter:
     - family: Bagel Fat One
       fonts:
         - asset: lib/assets/fonts/BagelFatOne-Regular.ttf
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "lib/assets/images/bazario-logo.png"
