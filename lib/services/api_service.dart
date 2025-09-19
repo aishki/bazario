@@ -6,14 +6,24 @@ class ApiService {
   static const String baseUrl = Constants.apiBaseUrl;
 
   Future<Map<String, dynamic>> get(String endpoint) async {
+    final fullUrl = '$baseUrl/$endpoint';
+    print('[ApiService] GET → $fullUrl'); // 👈 Logs the exact URL
+
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/$endpoint'),
+        Uri.parse(fullUrl),
         headers: {'Content-Type': 'application/json'},
       );
 
+      print('[ApiService] Response status: ${response.statusCode}');
+      final preview = response.body.length > 200
+          ? response.body.substring(0, 200)
+          : response.body;
+      print('[ApiService] Raw response: $preview');
+
       return _handleResponse(response);
     } catch (e) {
+      print('[ApiService] Network error: $e');
       throw Exception('Network error: $e');
     }
   }
@@ -60,7 +70,7 @@ class ApiService {
       final response = await http.delete(
         Uri.parse('$baseUrl/$endpoint'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode(data), // send { "id": ... } in request body
+        body: json.encode(data),
       );
 
       return _handleResponse(response);
