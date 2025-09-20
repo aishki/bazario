@@ -936,20 +936,29 @@ class _VendorMyShopState extends State<VendorMyShop> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              CircleAvatar(
-                                radius: 40,
-                                backgroundColor: Colors.grey[200],
-                                backgroundImage:
-                                    _currentVendor?.logoUrl != null &&
-                                        _currentVendor?.logoUrl?.isNotEmpty ==
-                                            true
-                                    ? NetworkImage(_currentVendor!.logoUrl!)
-                                    : const AssetImage(
-                                            "lib/assets/images/logo_img.jpg",
-                                          )
-                                          as ImageProvider,
+                              Container(
+                                margin: const EdgeInsets.only(left: 10),
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 3,
+                                  ),
+                                  image: DecorationImage(
+                                    image:
+                                        _currentVendor?.logoUrl != null &&
+                                            _currentVendor!.logoUrl!.isNotEmpty
+                                        ? NetworkImage(_currentVendor!.logoUrl!)
+                                        : const AssetImage(
+                                                "lib/assets/images/logo_img.jpg",
+                                              )
+                                              as ImageProvider,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
                               ),
-
                               const SizedBox(width: 20),
 
                               OutlinedButton.icon(
