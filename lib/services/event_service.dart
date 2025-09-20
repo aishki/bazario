@@ -1,4 +1,6 @@
 import '../models/event.dart';
+import 'dart:io';
+import 'cloudinary_service.dart';
 import 'api_service.dart';
 
 class EventService {
@@ -72,6 +74,29 @@ class EventService {
     }
   }
 
+  Future<bool> uploadReceipt({
+    required String eventId,
+    required String vendorId,
+    required File receiptFile,
+  }) async {
+    try {
+      // Assuming you have a CloudinaryService to upload the file
+      final cloudinaryUrl = await CloudinaryService().uploadImage(receiptFile);
+
+      final response = await _api.post("event_vendors.php", {
+        "event_id": eventId,
+        "vendor_id": vendorId,
+        "event_receipt_url": cloudinaryUrl,
+        "status": "applied", // or "paid" if you want
+      });
+
+      return response['success'] == true;
+    } catch (e) {
+      print('[EventService] Error uploading receipt: $e');
+      return false;
+    }
+  }
+
   Future<bool> applyAsVendor({
     required String eventId,
     required String vendorId,
@@ -86,6 +111,26 @@ class EventService {
     } catch (e) {
       print('[EventService] Error applying as vendor: $e');
       return false;
+    }
+  }
+
+  Future<String?> getVendorStatus({
+    required String eventId,
+    required String vendorId,
+  }) async {
+    try {
+      final response = await _api.get(
+        "event_vendors.php?event_id=$eventId&vendor_id=$vendorId",
+      );
+      print('[applyAsVendor] Response: $response');
+      if (response['success'] == true && response['vendor_status'] != null) {
+        return response['vendor_status'];
+        // values like "applied", "approved", "denied"
+      }
+      return null; // no entry yet
+    } catch (e) {
+      print('[EventService] Error getting vendor status: $e');
+      return null;
     }
   }
 }
