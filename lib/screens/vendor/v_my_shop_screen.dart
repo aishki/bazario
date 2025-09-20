@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import '../../components/string_extensions.dart';
 import '../../models/vendor.dart';
 import '../../models/vendor_contact.dart';
 import '../../models/vendor_product.dart';
