@@ -28,6 +28,110 @@ class VendorPopUps extends StatefulWidget {
   State<VendorPopUps> createState() => _VendorPopUpsState();
 }
 
+//so i can reuse the receipt dialog
+Future<void> showUploadReceiptDialog({
+  required BuildContext context,
+  required Event event,
+  required String vendorId,
+  void Function()? onUploaded, // optional callback
+}) async {
+  XFile? pickedImage;
+
+  await showDialog(
+    context: context,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (dialogContext, setStateDialog) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDD602D),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Image.network(
+                              "https://res.cloudinary.com/ddnkxzfii/image/upload/v1758788271/ef67ce5c-e63f-4a91-bed7-1be3fb2b5a5c.png",
+                              height: 200,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Amount Due: ₱${event.boothFee}",
+                              style: const TextStyle(
+                                fontFamily: "Poppins",
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final picker = ImagePicker();
+                            final image = await picker.pickImage(
+                              source: ImageSource.gallery,
+                            );
+                            if (image != null) {
+                              setStateDialog(() => pickedImage = image);
+                            }
+                          },
+                          child: Container(
+                            height: 200,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: pickedImage == null
+                                ? const Center(child: Text("Upload Receipt"))
+                                : Image.file(File(pickedImage!.path)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () async {
+                      if (pickedImage != null) {
+                        final success = await EventService().uploadReceipt(
+                          eventId: event.id,
+                          vendorId: vendorId,
+                          receiptFile: File(pickedImage!.path),
+                        );
+                        if (success) {
+                          Navigator.pop(dialogContext);
+                          if (onUploaded != null) onUploaded();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Receipt uploaded successfully"),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text("Submit Receipt"),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
 class _VendorPopUpsState extends State<VendorPopUps>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
@@ -371,103 +475,12 @@ class _VendorPopUpsState extends State<VendorPopUps>
     );
   }
 
-  void _openUploadReceiptDialog(Event event) {
-    XFile? pickedImage;
-
-    showDialog(
+  _openUploadReceiptDialog(Event event) {
+    showUploadReceiptDialog(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (dialogContext, setStateDialog) {
-            return Dialog(
-              backgroundColor: Colors.transparent,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDD602D),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Image.network(
-                                "https://res.cloudinary.com/ddnkxzfii/image/upload/v1758788271/ef67ce5c-e63f-4a91-bed7-1be3fb2b5a5c.png",
-                                height: 200,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                "Amount Due: ₱${event.boothFee}",
-                                style: const TextStyle(
-                                  fontFamily: "Poppins",
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () async {
-                              final picker = ImagePicker();
-                              final image = await picker.pickImage(
-                                source: ImageSource.gallery,
-                              );
-                              if (image != null) {
-                                setStateDialog(() => pickedImage = image);
-                              }
-                            },
-                            child: Container(
-                              height: 200,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: pickedImage == null
-                                  ? const Center(child: Text("Upload Receipt"))
-                                  : Image.file(File(pickedImage!.path)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (pickedImage != null) {
-                          final success = await EventService().uploadReceipt(
-                            eventId: event.id,
-                            vendorId: widget.vendorId,
-                            receiptFile: File(pickedImage!.path),
-                          );
-                          if (success && mounted) {
-                            setState(() {
-                              _receiptStatus[event.id] = true;
-                            });
-                            Navigator.pop(dialogContext);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Receipt uploaded successfully"),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      child: const Text("Submit Receipt"),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      event: event,
+      vendorId: widget.vendorId,
+      onUploaded: () => _refreshJoinedEvents(),
     );
   }
 
@@ -756,103 +769,13 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     }
   }
 
-  void _openUploadReceiptDialog() {
-    XFile? pickedImage;
-
-    showDialog(
+  _openUploadReceiptDialog() {
+    showUploadReceiptDialog(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (dialogContext, setStateDialog) {
-            return Dialog(
-              backgroundColor: Colors.transparent,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDD602D),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        // QR + Fee
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Image.network(
-                                "https://res.cloudinary.com/ddnkxzfii/image/upload/v1758788271/ef67ce5c-e63f-4a91-bed7-1be3fb2b5a5c.png",
-                                height: 200,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                "Amount Due: ₱${widget.event.boothFee}",
-                                style: const TextStyle(
-                                  fontFamily: "Poppins",
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Upload
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () async {
-                              final picker = ImagePicker();
-                              final image = await picker.pickImage(
-                                source: ImageSource.gallery,
-                              );
-                              if (image != null) {
-                                setStateDialog(() => pickedImage = image);
-                              }
-                            },
-                            child: Container(
-                              height: 200,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: pickedImage == null
-                                  ? const Center(child: Text("Upload Receipt"))
-                                  : Image.file(File(pickedImage!.path)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (pickedImage != null) {
-                          final success = await EventService().uploadReceipt(
-                            eventId: widget.event.id,
-                            vendorId: widget.vendorId,
-                            receiptFile: File(pickedImage!.path),
-                          );
-                          if (success) {
-                            if (!mounted) return;
-                            setState(() => _receiptUploaded = true);
-                            Navigator.pop(dialogContext); // ✅ use dialogContext
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Receipt uploaded successfully"),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      child: const Text("Submit Receipt"),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
+      event: widget.event,
+      vendorId: widget.vendorId,
+      onUploaded: () {
+        setState(() => _receiptUploaded = true);
       },
     );
   }
