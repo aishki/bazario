@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 
 class Event {
   final String id;
-  final String createdBy; // user UUID
+  final String createdBy;
   final String name;
   final String? description;
   final String? venue;
@@ -15,6 +15,10 @@ class Event {
   final double boothFee;
   final int? maxSlots;
   final int slotsTaken;
+
+  // NEW: vendor-specific fields
+  final String? vendorStatus; // "applied", "approved", "denied", etc.
+  final String? receiptUrl; // uploaded proof, if any
 
   Event({
     required this.id,
@@ -30,13 +34,15 @@ class Event {
     this.boothFee = 0.0,
     this.maxSlots,
     this.slotsTaken = 0,
+    this.vendorStatus, // null if vendor hasn’t applied
+    this.receiptUrl, // null if no receipt uploaded
   });
 
   factory Event.fromJson(Map<String, dynamic> json) {
     return Event(
-      id: json['id'] ?? '',
-      createdBy: json['created_by'] ?? '',
-      name: json['name'] ?? '',
+      id: json['id']?.toString() ?? '',
+      createdBy: json['created_by']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
       description: json['description'],
       venue: json['venue'],
       posterUrl: json['poster_url'],
@@ -49,9 +55,16 @@ class Event {
       boothFee: (json['booth_fee'] != null)
           ? double.tryParse(json['booth_fee'].toString()) ?? 0.0
           : 0.0,
+      maxSlots: json['max_slots'] != null
+          ? int.tryParse(json['max_slots'].toString())
+          : null,
+      slotsTaken: json['slots_taken'] != null
+          ? int.tryParse(json['slots_taken'].toString()) ?? 0
+          : 0,
 
-      maxSlots: json['max_slots'],
-      slotsTaken: json['slots_taken'] ?? 0,
+      // map vendor-related fields
+      vendorStatus: json['vendor_status'],
+      receiptUrl: json['event_receipt_url'],
     );
   }
 
@@ -70,6 +83,10 @@ class Event {
       'booth_fee': boothFee,
       'max_slots': maxSlots,
       'slots_taken': slotsTaken,
+
+      // vendor-specific
+      'vendor_status': vendorStatus,
+      'event_receipt_url': receiptUrl,
     };
   }
 
@@ -77,12 +94,14 @@ class Event {
     return list.map((e) => Event.fromJson(e)).toList();
   }
 
-  // Convenience getters
+  // --- convenience getters ---
+  bool get hasVendorApplied => vendorStatus != null;
+  bool get hasUploadedReceipt => receiptUrl != null && receiptUrl!.isNotEmpty;
+
   String get scheduleStartDate => DateFormat('MMM d,').format(scheduleStart);
   String get scheduleEndDate => scheduleEnd != null
       ? DateFormat('MMM d, yyyy').format(scheduleEnd!)
       : '-';
-
   String get scheduleStartTime => DateFormat('h:mm a').format(scheduleStart);
   String get scheduleEndTime =>
       scheduleEnd != null ? DateFormat('h:mm a').format(scheduleEnd!) : '-';
