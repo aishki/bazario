@@ -252,68 +252,72 @@ class _VendorPopUpsState extends State<VendorPopUps>
     return FutureBuilder<List<Event>>(
       future: eventsFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(
-            child: SingleChildScrollView(
-              child: Text(
-                "Error loading events:\n${snapshot.error.toString()}",
-                style: const TextStyle(color: Colors.red, fontSize: 12),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text("No events available"));
-        }
-        return ListView.builder(
+        // Always build a scrollable ListView
+        return ListView(
           padding: EdgeInsets.zero,
-          itemCount: snapshot.data!.length + 1, // +1 for the header
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              // Header section
-              return Column(
-                children: [
-                  Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      tabs[_tabController.index],
-                      style: const TextStyle(
-                        color: Color(0xFF276700),
-                        fontFamily: "Poppins",
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
-                    ),
+          children: [
+            // --- Header Section ---
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  // safe access to avoid crash
+                  (_tabController.index < tabs.length)
+                      ? tabs[_tabController.index]
+                      : "",
+                  style: const TextStyle(
+                    color: Color(0xFF276700),
+                    fontFamily: "Poppins",
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
                   ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      "Note: Tap events for more information!",
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12,
-                        color: const Color(
-                          0xFF569109,
-                        ).withAlpha((0.9 * 255).toInt()),
-                      ),
-                    ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  "Note: Tap events for more information!",
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    color: const Color(
+                      0xFF569109,
+                    ).withAlpha((0.9 * 255).toInt()),
                   ),
-                  const SizedBox(height: 12),
-                  Container(height: 1, color: Color(0xFF276700)),
-                  const SizedBox(height: 12),
-                ],
-              );
-            }
-            // Event rows
-            return _buildEventRow(snapshot.data![index - 1]);
-          },
+                ),
+                const SizedBox(height: 12),
+                Container(height: 1, color: Color(0xFF276700)),
+                const SizedBox(height: 12),
+              ],
+            ),
+
+            // --- Content Section ---
+            if (snapshot.connectionState == ConnectionState.waiting)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+
+            if (snapshot.hasError)
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  "Error loading events:\n${snapshot.error}",
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+            if (snapshot.hasData && snapshot.data!.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(child: Text("No events available")),
+              ),
+
+            if (snapshot.hasData && snapshot.data!.isNotEmpty)
+              ...snapshot.data!.map((event) => _buildEventRow(event)),
+          ],
         );
       },
     );
@@ -418,7 +422,7 @@ class _VendorPopUpsState extends State<VendorPopUps>
                               width:
                                   MediaQuery.of(context).size.width /
                                       tabs.length -
-                                  32,
+                                  16,
                               height: 32,
                               decoration: BoxDecoration(
                                 color: Colors.white,
@@ -455,7 +459,7 @@ class _VendorPopUpsState extends State<VendorPopUps>
                                         fontFamily: 'Poppins',
                                         fontWeight: FontWeight.w500,
                                         color: _tabController.index == index
-                                            ? Colors.black87
+                                            ? Color(0xFF276700)
                                             : Colors.black54,
                                       ),
                                     ),
