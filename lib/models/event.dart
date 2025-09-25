@@ -17,7 +17,7 @@ class Event {
   final int slotsTaken;
 
   // NEW: vendor-specific fields
-  final String? vendorStatus; // "applied", "approved", "denied", etc.
+  final String? vendorStatus; // "pending", "approved", "denied", etc.
   final String? receiptUrl; // uploaded proof, if any
 
   Event({
