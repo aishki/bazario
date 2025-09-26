@@ -80,14 +80,13 @@ class EventService {
     required File receiptFile,
   }) async {
     try {
-      // Assuming you have a CloudinaryService to upload the file
       final cloudinaryUrl = await CloudinaryService().uploadImage(receiptFile);
 
       final response = await _api.post("event_vendors.php", {
         "event_id": eventId,
         "vendor_id": vendorId,
         "event_receipt_url": cloudinaryUrl,
-        "status": "applied", // or "paid" if you want
+        "status": "pending",
       });
 
       return response['success'] == true;
@@ -105,7 +104,7 @@ class EventService {
       final response = await _api.post("event_vendors.php", {
         "event_id": eventId,
         "vendor_id": vendorId,
-        "status": "applied",
+        "status": "pending",
       });
       return response['success'] == true;
     } catch (e) {
@@ -125,7 +124,7 @@ class EventService {
       print('[applyAsVendor] Response: $response');
       if (response['success'] == true && response['vendor_status'] != null) {
         return response['vendor_status'];
-        // values like "applied", "approved", "denied"
+        // values like "pending", "approved", "denied"
       }
       return null; // no entry yet
     } catch (e) {
