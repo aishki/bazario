@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:iconify_flutter/iconify_flutter.dart';
 import 'package:iconify_flutter/icons/carbon.dart';
 import 'package:iconify_flutter/icons/pixelarticons.dart';
+import 'package:iconify_flutter/icons/mdi.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -28,7 +30,7 @@ class VendorPopUps extends StatefulWidget {
   State<VendorPopUps> createState() => _VendorPopUpsState();
 }
 
-//so i can reuse the receipt dialog
+//so i can reuse the upload receipt dialog
 Future<void> showUploadReceiptDialog({
   required BuildContext context,
   required Event event,
@@ -194,7 +196,7 @@ class _VendorPopUpsState extends State<VendorPopUps>
         vendorId: widget.vendorId,
       ),
       builder: (context, snapshot) {
-        final vendorStatus = snapshot.data; // "applied", "approved", etc.
+        final vendorStatus = snapshot.data; // "pending", "approved", etc.
         final slotsLeft = (event.maxSlots ?? 0) - event.slotsTaken;
 
         return InkWell(
@@ -247,6 +249,8 @@ class _VendorPopUpsState extends State<VendorPopUps>
                     ),
                   ),
                   Container(
+                    constraints: const BoxConstraints(minWidth: 80),
+                    alignment: Alignment.center,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 4,
                       vertical: 1,
@@ -257,9 +261,11 @@ class _VendorPopUpsState extends State<VendorPopUps>
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      slotsLeft == event.maxSlots
-                          ? "${event.maxSlots} SLOTS ONLY"
-                          : "$slotsLeft SLOTS LEFT",
+                      vendorStatus == "approved"
+                          ? "JOINED"
+                          : (slotsLeft == event.maxSlots
+                                ? "${event.maxSlots} SLOTS ONLY"
+                                : "$slotsLeft SLOTS LEFT"),
                       style: const TextStyle(
                         fontFamily: "Poppins",
                         fontSize: 10,
@@ -349,35 +355,39 @@ class _VendorPopUpsState extends State<VendorPopUps>
               const SizedBox(height: 8),
 
               // Row 4: Apply Button + Upload Receipt
+              // Row 4: Apply Button + Upload Receipt
               Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: (vendorStatus == null)
+                      backgroundColor: vendorStatus == null
                           ? const Color(0xFFFF9E17) // not applied
-                          : const Color.fromARGB(
-                              145,
-                              112,
-                              104,
-                              101,
-                            ), // already applied
+                          : vendorStatus == "pending"
+                          ? const Color(0x91706865) // pending background
+                          : const Color(0xFF74CC00), // approved background
                       padding: const EdgeInsets.symmetric(
                         horizontal: 13,
-                        vertical: 7,
+                        vertical: 5,
                       ),
-                      minimumSize: const Size(120, 0), // fixed width + height
+                      minimumSize: const Size(120, 0),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
+                        side: vendorStatus == "approved"
+                            ? const BorderSide(
+                                color: Color(0xFF74CC00),
+                                width: 1,
+                              )
+                            : BorderSide.none,
                       ),
                     ),
                     onPressed: () async {
                       if (vendorStatus == null) {
+                        // Apply logic
                         final success = await EventService().applyAsVendor(
                           eventId: event.id,
                           vendorId: widget.vendorId,
                         );
-
                         if (!mounted) return;
                         if (success) {
                           setState(() {
@@ -390,14 +400,8 @@ class _VendorPopUpsState extends State<VendorPopUps>
                               ),
                             ),
                           );
-                          // REFRESH joinedEvents so the tab shows latest
                           if (_tabController.index == 1) {
-                            // joined tab
                             await _refreshJoinedEvents();
-                          } else {
-                            setState(() {
-                              _appliedStatus[event.id] = true;
-                            });
                           }
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -408,6 +412,14 @@ class _VendorPopUpsState extends State<VendorPopUps>
                             ),
                           );
                         }
+                      } else if (vendorStatus == "approved") {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Your application has been approved! Click the event for more details!",
+                            ),
+                          ),
+                        );
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -427,8 +439,10 @@ class _VendorPopUpsState extends State<VendorPopUps>
                             vendorStatus == null
                                 ? "APPLY"
                                 : vendorStatus.toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: vendorStatus == "pending"
+                                  ? Colors.white
+                                  : Colors.white, // approved/pending font color
                               fontFamily: "Poppins",
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -436,26 +450,30 @@ class _VendorPopUpsState extends State<VendorPopUps>
                           ),
                   ),
 
-                  const SizedBox(width: 12), // space between buttons
+                  const SizedBox(width: 12),
 
-                  if (vendorStatus == "applied")
+                  if (vendorStatus == "pending")
                     ElevatedButton(
                       onPressed: () => _openUploadReceiptDialog(event),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFD400),
+                        backgroundColor: const Color(0xFFFFF4BA), // pale bg
                         padding: const EdgeInsets.symmetric(
                           horizontal: 13,
-                          vertical: 7,
+                          vertical: 5,
                         ),
                         minimumSize: const Size(0, 0),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
+                          side: const BorderSide(
+                            color: Color(0xFFDD602D),
+                            width: 1,
+                          ),
                         ),
                       ),
                       child: const Text(
                         "UPLOAD RECEIPT",
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Color(0xFFFF9500), // orange font
                           fontFamily: "Poppins",
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -465,7 +483,7 @@ class _VendorPopUpsState extends State<VendorPopUps>
                 ],
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 5),
               Container(height: 1, color: Color(0xFF276700)),
               const SizedBox(height: 12),
             ],
@@ -744,7 +762,7 @@ class EventDetailsPage extends StatefulWidget {
 class _EventDetailsPageState extends State<EventDetailsPage> {
   late bool _applied;
   bool _receiptUploaded = false;
-  String? _vendorStatus; // "applied", "approved", "denied", or null
+  String? _vendorStatus; // "pending", "approved", "denied", or null
   bool _loading = true;
 
   @override
@@ -763,7 +781,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
     if (mounted) {
       setState(() {
-        _vendorStatus = status; // "applied", "approved", "denied", or null
+        _vendorStatus = status; // "pending", "approved", "denied", or null
         _loading = false;
       });
     }
@@ -790,8 +808,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         iconTheme: const IconThemeData(color: Color(0xFF569109)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () =>
-              Navigator.pop(context, true), // ✅ return true like cancel
+          onPressed: () => Navigator.pop(context, true),
         ),
         title: const Row(
           children: [
@@ -807,106 +824,337 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
             ),
           ],
         ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(2),
+          child: Container(height: 2, color: const Color(0xFF74CC00)),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.event.name,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text("WHERE: ${widget.event.venue ?? '-'}"),
-            Text(
-              "WHEN: ${widget.event.scheduleStartDate} - ${widget.event.scheduleEndDate}",
-            ),
-            Text(
-              "TIME: ${widget.event.scheduleStartTime} - ${widget.event.scheduleEndTime}",
-            ),
-            const SizedBox(height: 12),
-            Text("Description: ${widget.event.description ?? '-'}"),
-            Text("Requirements: ${widget.event.requirements ?? '-'}"),
-            Text("Booth Fee: ₱${widget.event.boothFee}"),
-            const SizedBox(height: 8),
-            if (_vendorStatus == "applied") ...[
-              ElevatedButton(
-                onPressed: _openUploadReceiptDialog,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFD400),
-                ),
-                child: const Text("UPLOAD RECEIPT"),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _receiptUploaded
-                    ? "We have received your application and receipt submission! Kindly wait as we verify your payment."
-                    : "Please upload your receipt of the booth payment fee to progress with your application for the event.",
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontFamily: "Poppins",
-                  color: Colors.black54,
-                ),
-              ),
-            ],
-            Text("Slots Left: $slotsLeft"),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Expanded(
-                  child: _loading
-                      ? Center(
-                          child: LoadingAnimationWidget.horizontalRotatingDots(
-                            color: Color(0xFFDD602D),
-                            size: 35,
-                          ),
-                        )
-                      : ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFFD400),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          onPressed: (_vendorStatus == null)
-                              ? () async {
-                                  final success = await EventService()
-                                      .applyAsVendor(
-                                        eventId: widget.event.id,
-                                        vendorId: widget.vendorId,
-                                      );
-                                  if (success) {
-                                    setState(() => _vendorStatus = "applied");
-                                  }
-                                }
-                              : null,
-                          child: Text((_vendorStatus ?? "APPLY").toUpperCase()),
-                        ),
-                ),
-                if (_applied) ...[
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: _openUploadReceiptDialog,
-                    child: const Text("UPLOAD RECEIPT"),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage("lib/assets/images/event-details-pop-ups-bg.png"),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Event name
+              Row(
+                children: [
+                  const Iconify(
+                    Carbon.event,
+                    color: Color(0xFF276700),
+                    size: 35,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      widget.event.name.toUpperCase(),
+                      style: const TextStyle(
+                        fontFamily: "Poppins",
+                        fontWeight: FontWeight.bold,
+                        fontSize: 24,
+                        color: Color(0xFF276700),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFDD602D),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              const SizedBox(height: 16),
+
+              // WHERE
+              Row(
+                children: [
+                  Text(
+                    "WHERE: ",
+                    style: const TextStyle(
+                      fontFamily: "Starla",
+                      fontSize: 15,
+                      color: Color(0xFF276700),
                     ),
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text(
-                      "CANCEL",
-                      style: TextStyle(color: Colors.white),
+                  ),
+                  Expanded(
+                    child: Text(
+                      widget.event.venue ?? "-",
+                      style: const TextStyle(
+                        fontFamily: "Poppins",
+                        fontSize: 13,
+                        color: Color(0xFF569109),
+                      ),
                     ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // WHEN
+              Row(
+                children: [
+                  Text(
+                    "WHEN: ",
+                    style: const TextStyle(
+                      fontFamily: "Starla",
+                      fontSize: 15,
+                      color: Color(0xFF276700),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      "${widget.event.scheduleStartDate} - ${widget.event.scheduleEndDate}",
+                      style: const TextStyle(
+                        fontFamily: "Poppins",
+                        fontSize: 13,
+                        color: Color(0xFF569109),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // TIME with clock icon
+              Row(
+                children: [
+                  const Iconify(
+                    Pixelarticons.clock,
+                    color: Color(0xFF74CC00),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      "${widget.event.scheduleStartTime} - ${widget.event.scheduleEndTime}",
+                      style: const TextStyle(
+                        fontFamily: "Poppins",
+                        fontSize: 15,
+                        color: Color(0xFF276700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Description
+              const Text(
+                "EVENT DESCRIPTION",
+                style: TextStyle(
+                  fontFamily: "Poppins",
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                  color: Color(0xFF276700),
+                ),
+              ),
+              Text(
+                widget.event.description ?? "-",
+                style: const TextStyle(
+                  fontFamily: "Poppins",
+                  fontSize: 13,
+                  color: Color(0xFF276700),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Requirements
+              const Text(
+                "REQUIREMENTS",
+                style: TextStyle(
+                  fontFamily: "Poppins",
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                  color: Color(0xFF276700),
+                ),
+              ),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0FABC),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  widget.event.requirements ?? "-",
+                  style: const TextStyle(
+                    fontFamily: "Poppins",
+                    fontSize: 13,
+                    color: Color(0xFF276700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Booth Fee
+              const Text(
+                "BOOTH FEE",
+                style: TextStyle(
+                  fontFamily: "Poppins",
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                  color: Color(0xFF276700),
+                ),
+              ),
+
+              Row(
+                children: [
+                  const Iconify(
+                    Mdi.currency_php,
+                    color: Color(0xFF74CC00),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    "${widget.event.boothFee}",
+                    style: const TextStyle(
+                      fontFamily: "Poppins",
+                      fontWeight: FontWeight.w600,
+                      fontSize: 18,
+                      color: Color(0xFF569109),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Pending state - upload receipt button (inline with fee)
+                  if (_vendorStatus == "pending")
+                    ElevatedButton(
+                      onPressed: _openUploadReceiptDialog,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFD400),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        minimumSize: const Size(0, 0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Icon(
+                        SolarIconsBold.upload,
+                        size: 17,
+                        color: Colors.white,
+                      ),
+                    ),
+                ],
+              ),
+
+              // ✅ Separate row for status text
+              if (_vendorStatus == "pending") ...[
+                const SizedBox(height: 8),
+                Text(
+                  _receiptUploaded
+                      ? "We have received your application and receipt submission! Kindly wait as we verify your payment."
+                      : "Please upload your receipt of the booth payment fee to progress with your application for the event.",
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontFamily: "Poppins",
+                    color: Colors.black54,
                   ),
                 ),
               ],
-            ),
-          ],
+
+              const SizedBox(height: 12),
+
+              const Spacer(),
+
+              // Slots
+              Center(
+                child: Column(
+                  children: [
+                    const Text(
+                      "SLOTS AVAILABLE LEFT",
+                      style: TextStyle(
+                        fontFamily: "Poppins",
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        color: Color(0xFF276700),
+                      ),
+                    ),
+                    Text(
+                      "$slotsLeft OUT OF ${widget.event.maxSlots} LEFT",
+                      style: const TextStyle(
+                        fontFamily: "Poppins",
+                        fontSize: 13,
+                        color: Color(0xFF276700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Bottom buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Expanded(
+                    child: _loading
+                        ? Center(
+                            child:
+                                LoadingAnimationWidget.horizontalRotatingDots(
+                                  color: Color(0xFFDD602D),
+                                  size: 35,
+                                ),
+                          )
+                        : ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFFD400),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            onPressed: (_vendorStatus == null)
+                                ? () async {
+                                    final success = await EventService()
+                                        .applyAsVendor(
+                                          eventId: widget.event.id,
+                                          vendorId: widget.vendorId,
+                                        );
+                                    if (success) {
+                                      setState(() => _vendorStatus = "pending");
+                                    }
+                                  }
+                                : () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          "Your application has been approved! Click the event for more details!",
+                                        ),
+                                      ),
+                                    );
+                                  },
+                            child: Text(
+                              (_vendorStatus ?? "APPLY").toUpperCase(),
+                              style: const TextStyle(
+                                fontFamily: "Poppins",
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDD602D),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text(
+                        "CANCEL",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: "Poppins",
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
