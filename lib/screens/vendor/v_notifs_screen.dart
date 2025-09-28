@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../models/vendor.dart';
 
-class VendorNotifs extends StatelessWidget {
+class VendorNotificationScreen extends StatelessWidget {
   final String userId;
   final String vendorId;
   final String businessName;
   final Vendor vendor;
 
-  const VendorNotifs({
+  const VendorNotificationScreen({
     super.key,
     required this.userId,
     required this.vendorId,
