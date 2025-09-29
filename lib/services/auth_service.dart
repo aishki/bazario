@@ -79,4 +79,46 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_isLoggedInKey) ?? false;
   }
+
+  Future<bool> checkUsernameAvailability(String username) async {
+    try {
+      final response = await _apiService.post('auth.php', {
+        'action': 'check_username',
+        'username': username,
+      });
+
+      return response['available'] == true;
+    } catch (e) {
+      print('[AuthService] Username check error: $e');
+      return false; // treat as unavailable if error
+    }
+  }
+
+  Future<bool> checkEmailAvailability(String email) async {
+    try {
+      final response = await _apiService.post('auth.php', {
+        'action': 'check_email',
+        'email': email,
+      });
+
+      return response['available'] == true;
+    } catch (e) {
+      print('[AuthService] Email check error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> checkPhoneAvailability(String phone) async {
+    try {
+      final response = await _apiService.post('auth.php', {
+        'action': 'check_phone',
+        'phone': phone,
+      });
+
+      return response['available'] == true;
+    } catch (e) {
+      print('[AuthService] Phone check error: $e');
+      return false;
+    }
+  }
 }
