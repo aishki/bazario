@@ -47,7 +47,24 @@ class _VendorMyShopState extends State<VendorMyShop> {
   void initState() {
     super.initState();
     _currentVendor = widget.vendor;
+    _loadVendorData();
     _loadVendorProducts();
+  }
+
+  Future<void> _loadVendorData() async {
+    try {
+      final vendorData = await _vendorService.getVendorProfile(widget.vendorId);
+      if (vendorData != null && mounted) {
+        setState(() {
+          _currentVendor = vendorData;
+        });
+        debugPrint(
+          "[VendorMyShop] Loaded vendor data: ${_currentVendor?.toJson()}",
+        );
+      }
+    } catch (e) {
+      debugPrint("[VendorMyShop] Error loading vendor data: $e");
+    }
   }
 
   @override
@@ -1279,9 +1296,6 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                             firstName: _currentVendor
                                                 ?.contact
                                                 ?.firstName,
-                                            middleName: _currentVendor
-                                                ?.contact
-                                                ?.middleName,
                                             lastName: _currentVendor
                                                 ?.contact
                                                 ?.lastName,
@@ -1592,8 +1606,8 @@ class _VendorMyShopState extends State<VendorMyShop> {
       context: context, // <- parent page context
       builder: (ctx) {
         return AlertDialog(
-          title: Text("Delete Product"),
-          content: Text("Are you sure you want to delete this product?"),
+          title: const Text("Delete Product"),
+          content: const Text("Are you sure you want to delete this product?"),
           actions: [
             TextButton(
               onPressed: () async {
@@ -1608,19 +1622,21 @@ class _VendorMyShopState extends State<VendorMyShop> {
 
                   // ✅ Use parent `context`, not ctx
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Product deleted successfully")),
+                    const SnackBar(
+                      content: Text("Product deleted successfully"),
+                    ),
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Failed to delete product")),
+                    const SnackBar(content: Text("Failed to delete product")),
                   );
                 }
               },
-              child: Text("Delete"),
+              child: const Text("Delete"),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text("Cancel"),
+              child: const Text("Cancel"),
             ),
           ],
         );
