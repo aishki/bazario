@@ -124,6 +124,21 @@ class Vendor {
   factory Vendor.fromJson(Map<String, dynamic> json) {
     final data = json.containsKey('vendor') ? json['vendor'] : json;
 
+    print("[DEBUG] Vendor.fromJson data: $data");
+
+    VendorContact? contact;
+
+    if (data['contact'] != null) {
+      // Nested contact from vendor API
+      contact = VendorContact.fromJson(data['contact']);
+    } else if (data['phone_number'] != null || data['contact_email'] != null) {
+      // Fallback: flat fields from login response
+      contact = VendorContact(
+        phoneNumber: data['phone_number'],
+        email: data['contact_email'] ?? data['email'],
+      );
+    }
+
     return Vendor(
       id: data['vendor_id'] ?? data['id'] ?? '',
       businessName: data['business_name'] ?? 'Unknown',
@@ -133,9 +148,7 @@ class Vendor {
       verified: data['verified'] == true || data['verified'] == 1,
       businessCategory: data['business_category'],
       createdAt: DateTime.tryParse(data['created_at'] ?? '') ?? DateTime.now(),
-      contact: data['contact_info'] != null
-          ? VendorContact.fromJson(data['contact_info'])
-          : null,
+      contact: contact,
       contactDisplayPreferences: ContactDisplayPreferences.fromJson(
         data['contact_display_preferences'] ?? {},
       ),
@@ -173,8 +186,7 @@ class Vendor {
       'business_category': businessCategory,
       'created_at': createdAt.toIso8601String(),
       'contact_display_preferences': contactDisplayPreferences.toJson(),
-      if (contact?.phoneNumber != null) 'phone_number': contact!.phoneNumber,
-      if (contact != null) 'contact_info': contact!.toJson(),
+      if (contact != null) 'contact': contact!.toJson(),
     };
   }
 }
