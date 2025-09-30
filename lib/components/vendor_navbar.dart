@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../screens/vendor/v_nav_notifications_screen.dart';
+import '../screens/vendor/v_announcements_screen.dart';
 import '../screens/vendor/v_profile_screen.dart';
 import '../screens/vendor/v_dashboard.dart';
 import '../models/vendor.dart';
@@ -29,7 +29,7 @@ class _VendorNavBarState extends State<VendorNavBar> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> _screens = [
-      const VendorNotificationsScreen(),
+      const VendorAnnouncementsScreen(),
       VendorDashboard(
         userId: widget.userId,
         vendorId: widget.vendorId,
