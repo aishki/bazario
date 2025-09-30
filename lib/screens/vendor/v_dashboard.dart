@@ -156,7 +156,7 @@ class VendorDashboard extends StatelessWidget {
                   borderColor: const Color(0xFFFF9E17),
                   imagePath: "lib/assets/images/notifs-banner.png",
                   label: "Notifs",
-                  page: VendorNotifs(
+                  page: VendorNotificationScreen(
                     userId: userId,
                     vendorId: vendorId,
                     businessName: businessName,
