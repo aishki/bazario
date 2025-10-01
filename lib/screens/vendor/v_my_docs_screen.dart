@@ -31,6 +31,13 @@ class VendorMyDocs extends StatefulWidget {
   State<VendorMyDocs> createState() => _VendorMyDocsState();
 }
 
+class UploadResponse {
+  final bool success;
+  final String? message;
+
+  UploadResponse({required this.success, this.message});
+}
+
 class _VendorMyDocsState extends State<VendorMyDocs> {
   final VendorDocsService _service = VendorDocsService();
   bool _loading = true;
@@ -86,22 +93,22 @@ class _VendorMyDocsState extends State<VendorMyDocs> {
       ),
     );
 
-    final success = await _service.uploadDocument(
+    final result = await _service.uploadDocument(
       vendorId: widget.vendorId,
       docType: docType,
       file: file,
     );
 
     Navigator.pop(context); // close loading
-    if (success) {
+    if (result.success) {
       await _fetchDocs();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Document uploaded')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Document uploaded successfully')),
+      );
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Upload failed')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message ?? 'Upload failed.')),
+      );
     }
   }
 
@@ -120,13 +127,13 @@ class _VendorMyDocsState extends State<VendorMyDocs> {
       ),
     );
 
-    final success = await _service.replaceDocument(
+    final result = await _service.replaceDocument(
       documentId: docId,
       file: file,
     );
 
     Navigator.pop(context);
-    if (success) {
+    if (result.success) {
       await _fetchDocs();
       ScaffoldMessenger.of(
         context,
@@ -157,8 +164,8 @@ class _VendorMyDocsState extends State<VendorMyDocs> {
       ),
     );
     if (ok != true) return;
-    final success = await _service.deleteDocument(docId);
-    if (success) {
+    final result = await _service.deleteDocument(docId);
+    if (result.success) {
       await _fetchDocs();
       ScaffoldMessenger.of(
         context,
