@@ -3,9 +3,30 @@ import 'api_service.dart';
 import '../models/vendor_document.dart';
 import '../services/cloudinary_service.dart';
 
+class VendorDocResult {
+  final bool success;
+  final String? message;
+  final String? fileUrl;
+
+  VendorDocResult({required this.success, this.message, this.fileUrl});
+}
+
 class VendorDocsService {
   final ApiService _apiService = ApiService();
   final CloudinaryService _cloudinaryService = CloudinaryService();
+
+  String _mapErrorMessage(String raw) {
+    if (raw.contains("Unsupported ZIP file")) {
+      return "That file type is not allowed. Please upload PDF, DOC, DOCX, JPG, or PNG.";
+    }
+    if (raw.contains("File size too large")) {
+      return "File is too big. Maximum allowed size is 1MB.";
+    }
+    if (raw.contains("Network")) {
+      return "Network error. Please check your internet connection.";
+    }
+    return "Unexpected error: $raw";
+  }
 
   // Fetch vendor documents
   Future<List<VendorDocument>> fetchVendorDocuments(String vendorId) async {
@@ -22,17 +43,20 @@ class VendorDocsService {
   }
 
   // Upload new document using Cloudinary
-  Future<bool> uploadDocument({
+  Future<VendorDocResult> uploadDocument({
     required String vendorId,
     required String docType,
     required File file,
   }) async {
     try {
-      // Upload to Cloudinary first
+      // Upload to Cloudinary
       final fileUrl = await _cloudinaryService.uploadImage(file);
+
       if (fileUrl == null) {
-        print('[vDocs] Cloudinary upload failed');
-        return false;
+        return VendorDocResult(
+          success: false,
+          message: "Upload failed. Please check your file format and size.",
+        );
       }
 
       // Save metadata to backend
@@ -42,49 +66,80 @@ class VendorDocsService {
         "file_url": fileUrl,
       });
 
-      return response['success'] == true;
+      print('[vDocs] Backend response: $response');
+
+      if (response['success'] == true) {
+        return VendorDocResult(success: true, fileUrl: fileUrl);
+      } else {
+        return VendorDocResult(
+          success: false,
+          message: response['error'] ?? "Upload failed on server side.",
+        );
+      }
     } catch (e) {
-      print('[vDocs] Error uploading document: $e');
-      return false;
+      return VendorDocResult(
+        success: false,
+        message: _mapErrorMessage(e.toString()),
+      );
     }
   }
 
   // Replace existing document with new file
-  Future<bool> replaceDocument({
+  Future<VendorDocResult> replaceDocument({
     required String documentId,
     required File file,
   }) async {
     try {
-      // Upload to Cloudinary
       final fileUrl = await _cloudinaryService.uploadImage(file);
+
       if (fileUrl == null) {
-        print('[vDocs] Cloudinary upload failed');
-        return false;
+        return VendorDocResult(
+          success: false,
+          message: "Upload failed. Please check your file format and size.",
+        );
       }
 
-      // Update backend with new file URL
       final response = await _apiService.put('vendor_documents.php', {
         "id": documentId,
         "file_url": fileUrl,
       });
 
-      return response['success'] == true;
+      if (response['success'] == true) {
+        return VendorDocResult(success: true, fileUrl: fileUrl);
+      } else {
+        return VendorDocResult(
+          success: false,
+          message: response['error'] ?? "Replace failed on server side.",
+        );
+      }
     } catch (e) {
-      print('[vDocs] Error replacing document: $e');
-      return false;
+      return VendorDocResult(
+        success: false,
+        message: _mapErrorMessage(e.toString()),
+      );
     }
   }
 
   // Delete a document
-  Future<bool> deleteDocument(String docId) async {
+  Future<VendorDocResult> deleteDocument(String docId) async {
     try {
       final response = await _apiService.delete('vendor_documents.php', {
         "id": docId,
       });
-      return response['success'] == true;
+
+      if (response['success'] == true) {
+        return VendorDocResult(success: true);
+      } else {
+        return VendorDocResult(
+          success: false,
+          message: response['error'] ?? "Delete failed.",
+        );
+      }
     } catch (e) {
-      print('[vDocs] Error deleting document: $e');
-      return false;
+      return VendorDocResult(
+        success: false,
+        message: _mapErrorMessage(e.toString()),
+      );
     }
   }
 }
