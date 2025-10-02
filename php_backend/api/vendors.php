@@ -50,22 +50,45 @@ switch ($method) {
                     $vendor['social_links'] = json_decode($vendor['social_links'], true);
                 }
 
-                echo json_encode(array(
+                // Nest contact info
+                $vendor['contact'] = [
+                    "first_name"   => $vendor['first_name'],
+                    "last_name"    => $vendor['last_name'],
+                    "suffix"       => $vendor['suffix'],
+                    "phone_number" => $vendor['phone_number'],
+                    "email"        => $vendor['contact_email'],
+                    "position"     => $vendor['position'],
+                ];
+
+                // Remove flat contact fields
+                unset(
+                    $vendor['first_name'],
+                    $vendor['last_name'],
+                    $vendor['suffix'],
+                    $vendor['phone_number'],
+                    $vendor['contact_email'],
+                    $vendor['position']
+                );
+
+                echo json_encode([
                     "success" => true,
-                    "vendor" => $vendor
-                ));
-            } else {
-                echo json_encode(array(
-                    "success" => false,
-                    "message" => "Vendor not found"
-                ));
+                    "vendor"  => $vendor
+                ]);
             }
         } else {
             // Get all vendors (for listing)
-            $query = "SELECT v.id AS vendor_id, v.business_name, v.description, v.logo_url, 
-                             v.verified, v.business_category, v.created_at
-                      FROM vendors v 
+            $query = "SELECT v.id AS vendor_id, 
+                            v.business_name, 
+                            v.description, 
+                            v.logo_url, 
+                            v.verified, 
+                            v.business_category, 
+                            v.created_at,
+                            vc.phone_number
+                      FROM vendors v
+                      LEFT JOIN vendor_contacts vc ON v.id = vc.id
                       ORDER BY v.created_at DESC";
+
 
             $stmt = $db->prepare($query);
             $stmt->execute();
@@ -132,14 +155,24 @@ switch ($method) {
                     $stmt->execute($params);
                 }
 
-                // ---- Handle vendor_contacts (same as before) ----
-                if (isset($data->contact_info) || isset($data->phone_number)) {
+                // Handle vendor_contacts - support both 'contact', 'contact_info', and 'phone_number' formats
+                if (isset($data->contact) || isset($data->contact_info) || isset($data->phone_number)) {
+                    // Check if contact record exists
                     $check_query = "SELECT id FROM vendor_contacts WHERE id = :vendor_id";
                     $check_stmt = $db->prepare($check_query);
                     $check_stmt->bindParam(':vendor_id', $data->vendor_id);
                     $check_stmt->execute();
 
+                    // Determine which contact data format is being used
+                    $contact_data = null;
+                    if (isset($data->contact)) {
+                        $contact_data = $data->contact;
+                    } elseif (isset($data->contact_info)) {
+                        $contact_data = $data->contact_info;
+                    }
+
                     if ($check_stmt->rowCount() > 0) {
+                        // Update existing contact
                         $contact_query = "UPDATE vendor_contacts SET 
                                         first_name = :first_name,
                                         middle_name = :middle_name,
@@ -150,6 +183,7 @@ switch ($method) {
                                         position = :position
                                       WHERE id = :vendor_id";
                     } else {
+                        // Insert new contact
                         $contact_query = "INSERT INTO vendor_contacts 
                                         (id, first_name, middle_name, last_name, suffix, phone_number, email, position, created_at) 
                                       VALUES 
@@ -159,17 +193,28 @@ switch ($method) {
                     $contact_stmt = $db->prepare($contact_query);
                     $contact_stmt->bindParam(':vendor_id', $data->vendor_id);
 
-                    if (isset($data->contact_info)) {
-                        $contact_stmt->bindParam(':first_name', $data->contact_info->first_name);
-                        $contact_stmt->bindParam(':middle_name', $data->contact_info->middle_name);
-                        $contact_stmt->bindParam(':last_name', $data->contact_info->last_name);
-                        $contact_stmt->bindParam(':suffix', $data->contact_info->suffix);
-                        $contact_stmt->bindParam(':phone_number', $data->contact_info->phone_number);
-                        $contact_stmt->bindParam(':email', $data->contact_info->email);
-                        $contact_stmt->bindParam(':position', $data->contact_info->position);
+                    if ($contact_data) {
+                        // Use contact data object
+                        $first_name = isset($contact_data->first_name) ? $contact_data->first_name : null;
+                        $middle_name = isset($contact_data->middle_name) ? $contact_data->middle_name : null;
+                        $last_name = isset($contact_data->last_name) ? $contact_data->last_name : null;
+                        $suffix = isset($contact_data->suffix) ? $contact_data->suffix : null;
+                        $phone_number = isset($contact_data->phone_number) ? $contact_data->phone_number : null;
+                        $email = isset($contact_data->email) ? $contact_data->email : null;
+                        $position = isset($contact_data->position) ? $contact_data->position : null;
+
+                        $contact_stmt->bindParam(':first_name', $first_name);
+                        $contact_stmt->bindParam(':middle_name', $middle_name);
+                        $contact_stmt->bindParam(':last_name', $last_name);
+                        $contact_stmt->bindParam(':suffix', $suffix);
+                        $contact_stmt->bindParam(':phone_number', $phone_number);
+                        $contact_stmt->bindParam(':email', $email);
+                        $contact_stmt->bindParam(':position', $position);
                     } else {
+                        // Fallback to flat phone_number field
                         $phone_number = isset($data->phone_number) ? $data->phone_number : null;
-                        $contact_stmt->bindParam(':first_name', $null = null);
+                        $null = null;
+                        $contact_stmt->bindParam(':first_name', $null);
                         $contact_stmt->bindParam(':middle_name', $null);
                         $contact_stmt->bindParam(':last_name', $null);
                         $contact_stmt->bindParam(':suffix', $null);
