@@ -81,4 +81,28 @@ class VendorService {
       return false;
     }
   }
+
+  Future<Map<String, dynamic>> addProduct({
+    required String vendorId,
+    required String name,
+    String? description,
+    String? imageUrl,
+    bool isFeatured = false,
+  }) async {
+    try {
+      print('[v0] Adding product for vendor: $vendorId');
+      final response = await _apiService.post('vendor_products.php', {
+        'vendor_id': vendorId,
+        'name': name,
+        'description': description,
+        'image_url': imageUrl,
+        'is_featured': isFeatured,
+      });
+      print('[v0] API response: $response');
+      return response;
+    } catch (e) {
+      print('[v0] Error adding product: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 }
