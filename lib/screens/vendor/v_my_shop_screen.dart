@@ -628,6 +628,12 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                                                       const EdgeInsets.all(
                                                                         8,
                                                                       ),
+                                                                  width: 168,
+                                                                  constraints:
+                                                                      const BoxConstraints(
+                                                                        minHeight:
+                                                                            55,
+                                                                      ),
                                                                   decoration: BoxDecoration(
                                                                     color: Colors
                                                                         .white,
@@ -694,7 +700,26 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                         alignment: Alignment.center,
                                         child: GestureDetector(
                                           onTap: () {
-                                            _openAddProductDialog(context);
+                                            if (_products
+                                                    .where(
+                                                      (p) =>
+                                                          p.isFeatured == true,
+                                                    )
+                                                    .length >=
+                                                5) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    "You can only feature 5 top products for your shop! Delete an existing product first to replace them.",
+                                                  ),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                            } else {
+                                              _openAddProductDialog(context);
+                                            }
                                           },
                                           child: Image.asset(
                                             "lib/assets/icons/add.png",
@@ -983,12 +1008,9 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                     ? null
                                     : _pickAndUploadImage,
                                 icon: _isUploadingImage
-                                    ? const SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
+                                    ? LoadingAnimationWidget.horizontalRotatingDots(
+                                        color: Colors.white,
+                                        size: 20,
                                       )
                                     : const Icon(
                                         Icons.edit,
@@ -1509,6 +1531,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                     children: [
                                       // Product name field
                                       Container(
+                                        height: 42,
                                         padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
                                           color: Colors.white,
@@ -1518,11 +1541,13 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                         ),
                                         child: TextField(
                                           controller: nameController,
-                                          maxLines: 1,
+                                          maxLines: null,
                                           style: const TextStyle(
                                             fontFamily: "Poppins",
                                             color: Color(0xFF792401),
                                           ),
+                                          textAlignVertical:
+                                              TextAlignVertical.center,
                                           decoration: const InputDecoration(
                                             border: InputBorder.none,
                                             hintText: "Product name...",
@@ -1531,6 +1556,8 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                               fontSize: 12,
                                               color: Color(0xFFDD602D),
                                             ),
+                                            isCollapsed: true,
+                                            contentPadding: EdgeInsets.zero,
                                           ),
                                         ),
                                       ),
@@ -1538,7 +1565,9 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                       // Description field
                                       Container(
                                         height: 150,
-                                        padding: const EdgeInsets.all(8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Colors.white,
                                           borderRadius: BorderRadius.circular(
@@ -1685,19 +1714,15 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                 }
                               },
                         child: isUploading
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                  color: Color(0xFF792401),
-                                  strokeWidth: 2,
-                                ),
+                            ? LoadingAnimationWidget.horizontalRotatingDots(
+                                color: Colors.white,
+                                size: 20,
                               )
                             : const Text(
                                 "Add Top Product",
                                 style: TextStyle(
                                   fontFamily: "Poppins",
-                                  color: Color(0xFF792401),
+                                  color: Color.fromARGB(226, 255, 213, 0),
                                 ),
                               ),
                       ),
@@ -1759,7 +1784,6 @@ class _VendorMyShopState extends State<VendorMyShop> {
                 if (success) {
                   await _loadVendorProducts();
 
-                  // ✅ Use parent `context`, not ctx
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text("Product deleted successfully"),
@@ -1789,7 +1813,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
     });
 
     try {
-      // Assuming VendorService has a method to fetch vendor products
+      // Use VendorService method to fetch vendor products
       final products = await _vendorService.getTopProducts(widget.vendorId);
 
       if (mounted) {
