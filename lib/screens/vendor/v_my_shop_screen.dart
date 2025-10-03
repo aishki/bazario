@@ -776,7 +776,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
             id: _currentVendor?.id ?? "Unknown",
             businessName: _currentVendor?.businessName ?? "",
             description: _currentVendor?.description,
-            logoUrl: imageUrl, // Set new Cloudinary URL
+            logoUrl: imageUrl, // Set Cloudinary URL
             socialLinks: _currentVendor?.socialLinks ?? SocialLinks(),
             verified: _currentVendor?.verified ?? false,
             businessCategory: _currentVendor?.businessCategory,
@@ -1416,8 +1416,10 @@ class _VendorMyShopState extends State<VendorMyShop> {
       barrierDismissible: false,
       barrierColor: const Color(0xFF792401).withOpacity(0.95),
       builder: (context) {
+        final TextEditingController nameController = TextEditingController();
         final TextEditingController descController = TextEditingController();
         XFile? pickedImage;
+        bool isUploading = false;
 
         return StatefulBuilder(
           builder: (context, setState) {
@@ -1444,15 +1446,20 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                 // Left: Upload image
                                 Expanded(
                                   child: GestureDetector(
-                                    onTap: () async {
-                                      final picker = ImagePicker();
-                                      final image = await picker.pickImage(
-                                        source: ImageSource.gallery,
-                                      );
-                                      if (image != null) {
-                                        setState(() => pickedImage = image);
-                                      }
-                                    },
+                                    onTap: isUploading
+                                        ? null
+                                        : () async {
+                                            final picker = ImagePicker();
+                                            final image = await picker
+                                                .pickImage(
+                                                  source: ImageSource.gallery,
+                                                );
+                                            if (image != null) {
+                                              setState(
+                                                () => pickedImage = image,
+                                              );
+                                            }
+                                          },
                                     child: Container(
                                       height: 200,
                                       decoration: BoxDecoration(
@@ -1496,35 +1503,68 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                 ),
                                 const SizedBox(width: 16),
 
-                                // Right: description input
+                                // Right: name and description inputs
                                 Expanded(
-                                  child: Container(
-                                    height: 150,
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Center(
-                                      child: TextField(
-                                        controller: descController,
-                                        maxLines: null,
-                                        style: const TextStyle(
-                                          fontFamily: "Poppins",
-                                          color: Color(0xFF792401),
+                                  child: Column(
+                                    children: [
+                                      // Product name field
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
-                                        decoration: const InputDecoration(
-                                          border: InputBorder.none,
-                                          hintText:
-                                              "Type your top product description here...",
-                                          hintStyle: TextStyle(
+                                        child: TextField(
+                                          controller: nameController,
+                                          maxLines: 1,
+                                          style: const TextStyle(
                                             fontFamily: "Poppins",
-                                            fontSize: 12,
-                                            color: Color(0xFFDD602D),
+                                            color: Color(0xFF792401),
+                                          ),
+                                          decoration: const InputDecoration(
+                                            border: InputBorder.none,
+                                            hintText: "Product name...",
+                                            hintStyle: TextStyle(
+                                              fontFamily: "Poppins",
+                                              fontSize: 12,
+                                              color: Color(0xFFDD602D),
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
+                                      const SizedBox(height: 8),
+                                      // Description field
+                                      Container(
+                                        height: 150,
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: TextField(
+                                          controller: descController,
+                                          maxLines: null,
+                                          style: const TextStyle(
+                                            fontFamily: "Poppins",
+                                            color: Color(0xFF792401),
+                                          ),
+                                          decoration: const InputDecoration(
+                                            border: InputBorder.none,
+                                            hintText:
+                                                "Type your top product description here...",
+                                            hintStyle: TextStyle(
+                                              fontFamily: "Poppins",
+                                              fontSize: 12,
+                                              color: Color(0xFFDD602D),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -1547,22 +1587,119 @@ class _VendorMyShopState extends State<VendorMyShop> {
                             vertical: 12,
                           ),
                         ),
-                        onPressed: () async {
-                          if (pickedImage != null &&
-                              descController.text.trim().isNotEmpty) {
-                            // TODO: Upload image → get URL
-                            // TODO: Save {imageUrl, description} to DB
-                            Navigator.pop(context); // close modal
-                            setState(() {}); // refresh UI
-                          }
-                        },
-                        child: const Text(
-                          "Add Top Product",
-                          style: TextStyle(
-                            fontFamily: "Poppins",
-                            color: Color(0xFF792401),
-                          ),
-                        ),
+                        onPressed: isUploading
+                            ? null
+                            : () async {
+                                // Validate inputs
+                                if (nameController.text.trim().isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please enter a product name',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                if (pickedImage == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please select a product image',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                setState(() {
+                                  isUploading = true;
+                                });
+
+                                try {
+                                  // Upload image to Cloudinary
+                                  final imageFile = File(pickedImage!.path);
+                                  final imageUrl = await _cloudinaryService
+                                      .uploadImage(imageFile);
+
+                                  if (imageUrl == null) {
+                                    throw Exception('Failed to upload image');
+                                  }
+
+                                  // Create product via API
+                                  final response = await _vendorService
+                                      .addProduct(
+                                        vendorId: widget.vendorId,
+                                        name: nameController.text.trim(),
+                                        description:
+                                            descController.text.trim().isEmpty
+                                            ? null
+                                            : descController.text.trim(),
+                                        imageUrl: imageUrl,
+                                        isFeatured: true,
+                                      );
+
+                                  if (response['success'] == true) {
+                                    // Close dialog
+                                    Navigator.pop(context);
+
+                                    // Refresh products list
+                                    await _loadVendorProducts();
+
+                                    // Show success message
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Product added successfully!',
+                                        ),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  } else {
+                                    // Show error message from API
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          response['message'] ??
+                                              'Failed to add product',
+                                        ),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  print('[v0] Error adding product: $e');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error: ${e.toString()}'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                } finally {
+                                  setState(() {
+                                    isUploading = false;
+                                  });
+                                }
+                              },
+                        child: isUploading
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  color: Color(0xFF792401),
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                "Add Top Product",
+                                style: TextStyle(
+                                  fontFamily: "Poppins",
+                                  color: Color(0xFF792401),
+                                ),
+                              ),
                       ),
                     ],
                   ),
@@ -1581,7 +1718,9 @@ class _VendorMyShopState extends State<VendorMyShop> {
                           color: Colors.transparent,
                           child: IconButton(
                             padding: EdgeInsets.zero,
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: isUploading
+                                ? null
+                                : () => Navigator.pop(context),
                             icon: const Iconify(
                               size: 30,
                               IconParkSolid.delete_key,
