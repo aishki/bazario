@@ -11,6 +11,7 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:iconify_flutter/iconify_flutter.dart';
 import 'package:iconify_flutter/icons/mdi.dart';
 import 'package:iconify_flutter/icons/icon_park_solid.dart';
+import 'package:iconify_flutter/icons/ph.dart';
 import 'package:iconify_flutter/icons/prime.dart';
 import 'package:iconify_flutter/icons/ic.dart';
 
@@ -37,6 +38,9 @@ class _VendorMyShopState extends State<VendorMyShop> {
   final VendorService _vendorService = VendorService();
   final CloudinaryService _cloudinaryService = CloudinaryService();
   final ImagePicker _imagePicker = ImagePicker();
+  // Track locally edited products
+  final Set<VendorProduct> _editedProducts = {};
+
   bool _isLoading = false;
   bool _isEditMode = false;
   bool _isUploadingImage = false;
@@ -403,13 +407,31 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                         label: _isEditMode
                                             ? "SAVE CHANGES"
                                             : "EDIT TOP PRODUCTS",
-                                        onTap: () {
-                                          if (_isEditMode &&
-                                              _currentlyEditingProduct !=
-                                                  null) {
-                                            _saveProductChanges(
-                                              _currentlyEditingProduct!,
-                                            );
+                                        onTap: () async {
+                                          if (_isEditMode) {
+                                            final success =
+                                                await _saveAllProductChanges();
+                                            if (success) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    "All changes saved successfully",
+                                                  ),
+                                                ),
+                                              );
+                                            } else {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    "Some changes failed to save",
+                                                  ),
+                                                ),
+                                              );
+                                            }
                                           } else {
                                             setState(() {
                                               _isEditMode = true;
@@ -470,6 +492,79 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                           ),
                                         ],
                                       ),
+
+                                      SizedBox(height: 8),
+
+                                      if (!_isEditMode)
+                                        // Add button at top - full width
+                                        SizedBox(
+                                          width: double
+                                              .infinity, // make button expand full width
+                                          child: TextButton(
+                                            style: TextButton.styleFrom(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 10,
+                                                  ),
+                                              backgroundColor: const Color(
+                                                0xFFFFD400,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              alignment: Alignment
+                                                  .centerLeft, // text+icon stays left-aligned
+                                            ),
+                                            onPressed: () {
+                                              if (_products
+                                                      .where(
+                                                        (p) =>
+                                                            p.isFeatured ==
+                                                            true,
+                                                      )
+                                                      .length >=
+                                                  5) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      "You can only feature 5 top products for your shop! Delete an existing product first to replace them.",
+                                                    ),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              } else {
+                                                _openAddProductDialog(context);
+                                              }
+                                            },
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .center, // center contents
+                                              mainAxisSize: MainAxisSize.max,
+                                              children: [
+                                                const Iconify(
+                                                  Ph.plus_bold,
+                                                  color: Color(0xFF792401),
+                                                  size: 15,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                const Text(
+                                                  "Add",
+                                                  style: TextStyle(
+                                                    fontFamily: "Poppins",
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF792401),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
 
                                       // Scrollable products
                                       FutureBuilder<List<VendorProduct>>(
@@ -552,6 +647,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                                       BorderRadius.circular(8),
                                                 ),
                                                 child: Stack(
+                                                  clipBehavior: Clip.none,
                                                   children: [
                                                     Row(
                                                       children: [
@@ -671,8 +767,8 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                                     // Delete icon
                                                     if (_isEditMode)
                                                       Positioned(
-                                                        top: 0,
-                                                        right: 0,
+                                                        top: -7,
+                                                        right: -5,
                                                         child: GestureDetector(
                                                           onTap: () =>
                                                               _confirmDelete(
@@ -682,7 +778,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                                           child: const Iconify(
                                                             IconParkSolid
                                                                 .delete_key,
-                                                            size: 30,
+                                                            size: 27,
                                                             color: Colors.white,
                                                           ),
                                                         ),
@@ -693,40 +789,6 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                             },
                                           );
                                         },
-                                      ),
-
-                                      // Add button at bottom
-                                      Align(
-                                        alignment: Alignment.center,
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            if (_products
-                                                    .where(
-                                                      (p) =>
-                                                          p.isFeatured == true,
-                                                    )
-                                                    .length >=
-                                                5) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    "You can only feature 5 top products for your shop! Delete an existing product first to replace them.",
-                                                  ),
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                              );
-                                            } else {
-                                              _openAddProductDialog(context);
-                                            }
-                                          },
-                                          child: Image.asset(
-                                            "lib/assets/icons/add.png",
-                                            width: 30,
-                                            height: 30,
-                                          ),
-                                        ),
                                       ),
                                     ],
                                   ),
@@ -1607,7 +1669,10 @@ class _VendorMyShopState extends State<VendorMyShop> {
                       // Add product button OUTSIDE the orange container
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFD400),
+                          backgroundColor: isUploading
+                              ? const Color.fromARGB(255, 28, 3, 255)
+                              : const Color(0xFFFFD400),
+
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -1722,7 +1787,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                 "Add Top Product",
                                 style: TextStyle(
                                   fontFamily: "Poppins",
-                                  color: Color.fromARGB(226, 255, 213, 0),
+                                  color: Color(0xFF792401),
                                 ),
                               ),
                       ),
@@ -1784,6 +1849,10 @@ class _VendorMyShopState extends State<VendorMyShop> {
                 if (success) {
                   await _loadVendorProducts();
 
+                  setState(() {
+                    _isEditMode = false; // exit edit mode after delete
+                  });
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text("Product deleted successfully"),
@@ -1834,87 +1903,166 @@ class _VendorMyShopState extends State<VendorMyShop> {
     }
   }
 
-  Future<bool> _saveProductChanges(VendorProduct product) async {
-    final success = await _vendorService.updateTopProducts(product);
-    if (!mounted) return success;
-    if (success && mounted) {
-      setState(() {
-        _isEditMode = false;
-      });
+  Future<bool> _saveAllProductChanges() async {
+    bool allSuccess = true;
+
+    for (final product in _editedProducts) {
+      final success = await _vendorService.updateTopProducts(product);
+      if (!success) allSuccess = false;
     }
 
-    return success;
+    if (!mounted) return allSuccess;
+
+    if (allSuccess) {
+      setState(() {
+        _isEditMode = false;
+        _editedProducts.clear();
+      });
+
+      await _loadVendorProducts();
+    }
+
+    return allSuccess;
   }
 
-  // call signature: _editProductField(product, "name" / "description")
   void _editProductField(VendorProduct product, String field) {
     final controller = TextEditingController(
       text: field == 'name' ? product.name : product.description,
     );
 
-    // Use the State's `context` to create the dialog. Inside builder
-    // use `dialogCtx` to immediately pop/close the dialog.
     showDialog(
-      context: context, // <- use State.context (safe)
+      barrierDismissible: false,
+      barrierColor: const Color(0xFF792401).withOpacity(0.95),
+      context: context,
       builder: (dialogCtx) {
         return AlertDialog(
-          title: Text("Edit ${field[0].toUpperCase()}${field.substring(1)}"),
-          content: TextField(
-            controller: controller,
-            maxLines: field == "description" ? 3 : 1,
-            decoration: InputDecoration(
-              border: const OutlineInputBorder(),
-              hintText: "Enter $field",
+          backgroundColor: Colors.transparent, // so outer container is visible
+          contentPadding: EdgeInsets.zero, // remove default padding
+          content: Container(
+            padding: const EdgeInsets.fromLTRB(16, 25, 16, 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogCtx).pop(),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () async {
-                // 1) Close the dialog IMMEDIATELY with the dialog's ctx
-                Navigator.of(dialogCtx).pop();
-
-                // 2) Apply the change locally (optimistic update)
-                final newValue = controller.text.trim();
-                setState(() {
-                  if (field == "name") {
-                    product.name = newValue;
-                  } else {
-                    product.description = newValue;
-                  }
-                });
-
-                // 3) Persist asynchronously
-                final success = await _saveProductChanges(product);
-
-                // 4) If the widget is disposed while awaiting, bail out
-                if (!mounted) return;
-
-                // 5) Refresh the _products list safely (re-fetch)
-                await _loadVendorProducts();
-
-                // 6) Use the State.context (not item/dialog ctx) to show snackbar
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      success
-                          ? "${field[0].toUpperCase()}${field.substring(1)} updated"
-                          : "Failed to update ${field}",
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Edit ${field[0].toUpperCase()}${field.substring(1)}",
+                    style: const TextStyle(
+                      fontFamily: "Poppins",
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFDD602D),
+                      fontSize: 18,
                     ),
                   ),
-                );
-              },
-              child: const Text("Save"),
+                ),
+
+                const SizedBox(height: 10),
+
+                // Custom styled input field
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color.fromARGB(99, 221, 95, 45),
+                    ),
+                  ),
+                  child: TextField(
+                    controller: controller,
+                    maxLines: field == "description" ? 3 : 1,
+                    style: const TextStyle(
+                      fontFamily: "Poppins",
+                      fontSize: 12,
+                      color: Color(0xFF792401),
+                    ),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: "Enter $field",
+                      hintStyle: const TextStyle(
+                        fontFamily: "Poppins",
+                        fontSize: 12,
+                        color: Color(0xFFDD602D),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        foregroundColor: const Color(0xFFDD602D), // text color
+                        side: const BorderSide(
+                          color: Color(0xFFDD602D),
+                        ), // orange outline
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () => Navigator.of(dialogCtx).pop(),
+                      child: const Text(
+                        "Cancel",
+                        style: TextStyle(
+                          fontFamily: "Poppins",
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        backgroundColor: const Color(0xFFDD602D), // orange bg
+                        foregroundColor: Colors.white, // white text
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.of(dialogCtx).pop();
+
+                        final newValue = controller.text.trim();
+                        setState(() {
+                          if (field == "name") {
+                            product.name = newValue;
+                          } else {
+                            product.description = newValue;
+                          }
+
+                          // Mark as edited for batch save later
+                          _editedProducts.add(product);
+                        });
+                      },
+                      child: const Text(
+                        "Enter Changes",
+                        style: TextStyle(
+                          fontFamily: "Poppins",
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
   }
 
+  //This edit field is for EDIT SHOP DETAILS
   Widget _buildEditField(
     String label,
     TextEditingController controller, {
