@@ -25,6 +25,9 @@ dependencies:
   flutter_launcher_icons: ^0.14.4
   file_picker: ^10.3.3
   url_launcher: ^6.3.2
+  carousel_slider: ^5.1.1
+  flutter_inset_shadow: ^2.0.3
+  shimmer: ^3.0.0
 
 dev_dependencies:
   flutter_test:
