@@ -1,9 +1,12 @@
 class Customer {
   final String id;
-  final String firstName;
+  final String email;
+  final String? profileUrl;
+  final String? firstName;
   final String? middleName;
-  final String lastName;
+  final String? lastName;
   final String? suffix;
+  final String username;
   final String? phoneNumber;
   final String? address;
   final String? city;
@@ -12,10 +15,13 @@ class Customer {
 
   Customer({
     required this.id,
-    required this.firstName,
+    required this.email,
+    this.profileUrl,
+    this.firstName,
     this.middleName,
-    required this.lastName,
+    this.lastName,
     this.suffix,
+    required this.username,
     this.phoneNumber,
     this.address,
     this.city,
@@ -26,10 +32,13 @@ class Customer {
   factory Customer.fromJson(Map<String, dynamic> json) {
     return Customer(
       id: json['id'] ?? '',
+      email: json['email'] ?? '',
+      profileUrl: json['profile_url'],
       firstName: json['first_name'] ?? '',
       middleName: json['middle_name'],
       lastName: json['last_name'] ?? '',
       suffix: json['suffix'],
+      username: json['username'],
       phoneNumber: json['phone_number'],
       address: json['address'],
       city: json['city'],
@@ -40,11 +49,14 @@ class Customer {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      'customer_id': id,
+      'email': email,
+      'profile_url': profileUrl,
       'first_name': firstName,
       'middle_name': middleName,
       'last_name': lastName,
       'suffix': suffix,
+      'username': username,
       'phone_number': phoneNumber,
       'address': address,
       'city': city,
@@ -53,13 +65,13 @@ class Customer {
     };
   }
 
-  String get fullName {
-    List<String> nameParts = [];
-    nameParts.add(firstName);
-    if (middleName != null && middleName!.isNotEmpty)
-      nameParts.add(middleName!);
-    nameParts.add(lastName);
-    if (suffix != null && suffix!.isNotEmpty) nameParts.add(suffix!);
-    return nameParts.join(' ');
-  }
+  // String get fullName {
+  //   List<String> nameParts = [];
+  //   nameParts.add(firstName);
+  //   if (middleName != null && middleName!.isNotEmpty)
+  //     nameParts.add(middleName!);
+  //   nameParts.add(lastName);
+  //   if (suffix != null && suffix!.isNotEmpty) nameParts.add(suffix!);
+  //   return nameParts.join(' ');
+  // }
 }
