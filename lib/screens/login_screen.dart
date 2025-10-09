@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'register_screen.dart';
 import 'customer/c_dashboard.dart';
 import '../components/vendor_navbar.dart';
+import '../components/customer_navbar.dart';
+import '../models/customer.dart';
 import '../models/vendor.dart';
 import '../models/vendor_contact.dart';
 
@@ -94,11 +96,25 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               );
             } else {
+              final customer = Customer(
+                id: responseData['customer_id'] ?? responseData['id'] ?? '',
+                username: responseData['username'] ?? 'Guest',
+                email: responseData['email'] ?? '',
+                createdAt:
+                    DateTime.tryParse(responseData['created_at'] ?? '') ??
+                    DateTime.now(),
+                // Add other fields that exist in your Customer model
+              );
+
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
-                  builder: (context) => CustomerDashboard(
+                  builder: (context) => CustomerNavBar(
                     userId: responseData['user_id'],
-                    email: responseData['email'],
+                    username:
+                        responseData['username'], // or responseData['username'] if available
+                    customerId:
+                        responseData['customer_id'], // optional, if it exists
+                    customer: customer,
                   ),
                 ),
               );
