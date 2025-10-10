@@ -597,12 +597,27 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                             );
                                           } else if (!snapshot.hasData ||
                                               snapshot.data!.isEmpty) {
-                                            return const Center(
-                                              child: Text(
-                                                "No top products yet.",
-                                                style: TextStyle(
-                                                  color: Colors.black54,
-                                                ),
+                                            return Center(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  // 👻 Ghost gif
+                                                  Image.asset(
+                                                    "lib/assets/icons/empty_ghost.gif",
+                                                    height:
+                                                        150, // adjust size as needed
+                                                  ),
+
+                                                  Text(
+                                                    "No top products yet.",
+                                                    style: TextStyle(
+                                                      color: Colors.black54,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+
+                                                  SizedBox(height: 20),
+                                                ],
                                               ),
                                             );
                                           }
@@ -840,6 +855,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
     );
   }
 
+  // Pick & upload vendor logo (profile picture)
   Future<void> _pickAndUploadImage() async {
     try {
       final XFile? image = await _imagePicker.pickImage(
@@ -855,15 +871,14 @@ class _VendorMyShopState extends State<VendorMyShop> {
         });
 
         final imageFile = File(image.path);
-        final imageUrl = await _cloudinaryService.uploadImage(imageFile);
+        final result = await _cloudinaryService.uploadImage(imageFile);
 
-        if (imageUrl != null) {
-          // Update the vendor with new logo URL
+        if (result != null) {
           final updatedVendor = Vendor(
             id: _currentVendor?.id ?? "Unknown",
             businessName: _currentVendor?.businessName ?? "",
             description: _currentVendor?.description,
-            logoUrl: imageUrl, // Set Cloudinary URL
+            logoUrl: result.secureUrl,
             socialLinks: _currentVendor?.socialLinks ?? SocialLinks(),
             verified: _currentVendor?.verified ?? false,
             businessCategory: _currentVendor?.businessCategory,
@@ -871,7 +886,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
             contact: _currentVendor?.contact,
           );
 
-          bool success = await _vendorService.updateVendorProfile(
+          final success = await _vendorService.updateVendorProfile(
             updatedVendor,
           );
 
@@ -879,17 +894,16 @@ class _VendorMyShopState extends State<VendorMyShop> {
             setState(() {
               _currentVendor = updatedVendor;
             });
-
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Profile picture updated successfully!'),
+                content: Text("Profile picture updated successfully!"),
                 backgroundColor: Colors.green,
               ),
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Failed to update profile picture.'),
+                content: Text("Failed to update profile picture."),
                 backgroundColor: Colors.red,
               ),
             );
@@ -897,7 +911,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Failed to upload image. Please try again.'),
+              content: Text("Failed to upload image. Please try again."),
               backgroundColor: Colors.red,
             ),
           );
@@ -907,7 +921,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
       print('[v0] Error picking/uploading image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.toString()}'),
+          content: Text("Error: ${e.toString()}"),
           backgroundColor: Colors.red,
         ),
       );
@@ -1494,6 +1508,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
     );
   }
 
+  // Open Add Product dialog
   void _openAddProductDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -1527,7 +1542,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                           children: [
                             Row(
                               children: [
-                                // Left: Upload image
+                                // Upload image
                                 Expanded(
                                   child: GestureDetector(
                                     onTap: isUploading
@@ -1539,9 +1554,9 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                                   source: ImageSource.gallery,
                                                 );
                                             if (image != null) {
-                                              setState(
-                                                () => pickedImage = image,
-                                              );
+                                              setState(() {
+                                                pickedImage = image;
+                                              });
                                             }
                                           },
                                     child: Container(
@@ -1591,7 +1606,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                 Expanded(
                                   child: Column(
                                     children: [
-                                      // Product name field
+                                      // Product name
                                       Container(
                                         height: 42,
                                         padding: const EdgeInsets.all(8),
@@ -1603,7 +1618,6 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                         ),
                                         child: TextField(
                                           controller: nameController,
-                                          maxLines: null,
                                           style: const TextStyle(
                                             fontFamily: "Poppins",
                                             color: Color(0xFF792401),
@@ -1618,13 +1632,14 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                               fontSize: 12,
                                               color: Color(0xFFDD602D),
                                             ),
-                                            isCollapsed: true,
+                                            isCollapsed:
+                                                true, //remove default padding
                                             contentPadding: EdgeInsets.zero,
                                           ),
                                         ),
                                       ),
                                       const SizedBox(height: 8),
-                                      // Description field
+                                      // Description
                                       Container(
                                         height: 150,
                                         padding: const EdgeInsets.symmetric(
@@ -1663,16 +1678,14 @@ class _VendorMyShopState extends State<VendorMyShop> {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 16),
 
-                      // Add product button OUTSIDE the orange container
+                      // Add product button
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: isUploading
                               ? const Color.fromARGB(255, 28, 3, 255)
                               : const Color(0xFFFFD400),
-
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -1684,7 +1697,6 @@ class _VendorMyShopState extends State<VendorMyShop> {
                         onPressed: isUploading
                             ? null
                             : () async {
-                                // Validate inputs
                                 if (nameController.text.trim().isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -1696,7 +1708,6 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                   );
                                   return;
                                 }
-
                                 if (pickedImage == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -1714,16 +1725,14 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                 });
 
                                 try {
-                                  // Upload image to Cloudinary
                                   final imageFile = File(pickedImage!.path);
-                                  final imageUrl = await _cloudinaryService
+                                  final result = await _cloudinaryService
                                       .uploadImage(imageFile);
 
-                                  if (imageUrl == null) {
-                                    throw Exception('Failed to upload image');
+                                  if (result == null) {
+                                    throw Exception("Failed to upload image");
                                   }
 
-                                  // Create product via API
                                   final response = await _vendorService
                                       .addProduct(
                                         vendorId: widget.vendorId,
@@ -1732,18 +1741,13 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                             descController.text.trim().isEmpty
                                             ? null
                                             : descController.text.trim(),
-                                        imageUrl: imageUrl,
+                                        imageUrl: result.secureUrl,
                                         isFeatured: true,
                                       );
 
                                   if (response['success'] == true) {
-                                    // Close dialog
                                     Navigator.pop(context);
-
-                                    // Refresh products list
                                     await _loadVendorProducts();
-
-                                    // Show success message
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
@@ -1753,12 +1757,11 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                       ),
                                     );
                                   } else {
-                                    // Show error message from API
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
                                           response['message'] ??
-                                              'Failed to add product',
+                                              "Failed to add product",
                                         ),
                                         backgroundColor: Colors.red,
                                       ),
@@ -1768,7 +1771,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                   print('[v0] Error adding product: $e');
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Error: ${e.toString()}'),
+                                      content: Text("Error: ${e.toString()}"),
                                       backgroundColor: Colors.red,
                                     ),
                                   );
@@ -1793,8 +1796,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                       ),
                     ],
                   ),
-
-                  // Close button in the top-right corner (clipped)
+                  // Close button
                   Positioned(
                     top: -10,
                     right: -12,
@@ -1812,8 +1814,8 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                 ? null
                                 : () => Navigator.pop(context),
                             icon: const Iconify(
-                              size: 30,
                               IconParkSolid.delete_key,
+                              size: 30,
                               color: Colors.white,
                             ),
                           ),
@@ -1832,45 +1834,132 @@ class _VendorMyShopState extends State<VendorMyShop> {
 
   void _confirmDelete(BuildContext pageContext, VendorProduct product) {
     showDialog(
-      context: context, // <- parent page context
+      barrierDismissible: false,
+      barrierColor: const Color(0xFF792401).withOpacity(0.95),
+      context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text("Delete Product"),
-          content: const Text("Are you sure you want to delete this product?"),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(ctx); // Close dialog immediately
-
-                final success = await _vendorService.deleteProduct(product.id);
-
-                if (!mounted) return;
-
-                if (success) {
-                  await _loadVendorProducts();
-
-                  setState(() {
-                    _isEditMode = false; // exit edit mode after delete
-                  });
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Product deleted successfully"),
+          backgroundColor: Colors.transparent,
+          contentPadding: EdgeInsets.zero,
+          content: Container(
+            padding: const EdgeInsets.fromLTRB(16, 25, 16, 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Delete Product",
+                    style: const TextStyle(
+                      fontFamily: "Poppins",
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFDD602D),
+                      fontSize: 18,
                     ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Failed to delete product")),
-                  );
-                }
-              },
-              child: const Text("Delete"),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                const Text(
+                  "Are you sure you want to delete this product?",
+                  style: TextStyle(
+                    fontFamily: "Poppins",
+                    fontSize: 13,
+                    color: Color(0xFF792401),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        foregroundColor: const Color(0xFFDD602D),
+                        side: const BorderSide(color: Color(0xFFDD602D)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text(
+                        "Cancel",
+                        style: TextStyle(
+                          fontFamily: "Poppins",
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        backgroundColor: const Color(0xFFDD602D),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+
+                        final success = await _vendorService.deleteProduct(
+                          product.id,
+                        );
+
+                        if (!mounted) return;
+
+                        if (success) {
+                          if (product.imageUrl != null &&
+                              product.imageUrl!.isNotEmpty) {
+                            final cloudinary = CloudinaryService();
+                            final publicId = cloudinary.extractPublicId(
+                              product.imageUrl!,
+                            );
+
+                            if (publicId.isNotEmpty) {
+                              await cloudinary.deleteImage(publicId);
+                            }
+                          }
+
+                          await _loadVendorProducts();
+                          setState(() {
+                            _isEditMode = false;
+                          });
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Product deleted successfully"),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Failed to delete product"),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text(
+                        "Delete",
+                        style: TextStyle(
+                          fontFamily: "Poppins",
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text("Cancel"),
-            ),
-          ],
+          ),
         );
       },
     );
