@@ -50,9 +50,9 @@ class VendorDocsService {
   }) async {
     try {
       // Upload to Cloudinary
-      final fileUrl = await _cloudinaryService.uploadImage(file);
+      final result = await _cloudinaryService.uploadImage(file);
 
-      if (fileUrl == null) {
+      if (result == null) {
         return VendorDocResult(
           success: false,
           message: "Upload failed. Please check your file format and size.",
@@ -63,13 +63,14 @@ class VendorDocsService {
       final response = await _apiService.post('vendor_documents.php', {
         "vendor_id": vendorId,
         "doc_type": docType,
-        "file_url": fileUrl,
+        "file_url": result.secureUrl,
+        "public_id": result.publicId,
       });
 
       print('[vDocs] Backend response: $response');
 
       if (response['success'] == true) {
-        return VendorDocResult(success: true, fileUrl: fileUrl);
+        return VendorDocResult(success: true, fileUrl: result.secureUrl);
       } else {
         return VendorDocResult(
           success: false,
@@ -90,9 +91,9 @@ class VendorDocsService {
     required File file,
   }) async {
     try {
-      final fileUrl = await _cloudinaryService.uploadImage(file);
+      final result = await _cloudinaryService.uploadImage(file);
 
-      if (fileUrl == null) {
+      if (result == null) {
         return VendorDocResult(
           success: false,
           message: "Upload failed. Please check your file format and size.",
@@ -101,11 +102,12 @@ class VendorDocsService {
 
       final response = await _apiService.put('vendor_documents.php', {
         "id": documentId,
-        "file_url": fileUrl,
+        "file_url": result.secureUrl,
+        "public_id": result.publicId,
       });
 
       if (response['success'] == true) {
-        return VendorDocResult(success: true, fileUrl: fileUrl);
+        return VendorDocResult(success: true, fileUrl: result.secureUrl);
       } else {
         return VendorDocResult(
           success: false,
