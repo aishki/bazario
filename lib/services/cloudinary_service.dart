@@ -10,7 +10,7 @@ class CloudinaryService {
   static const String uploadUrl =
       'https://api.cloudinary.com/v1_1/$cloudName/image/upload';
 
-  Future<String?> uploadImage(File imageFile) async {
+  Future<CloudinaryUploadResult?> uploadImage(File imageFile) async {
     try {
       print('[v0] Starting Cloudinary upload...');
 
@@ -46,8 +46,11 @@ class CloudinaryService {
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(responseBody);
         final secureUrl = jsonResponse['secure_url'];
-        print('[v0] Upload successful: $secureUrl');
-        return secureUrl;
+        final publicId = jsonResponse['public_id'];
+
+        print('[v0] Upload successful: $secureUrl (public_id: $publicId)');
+
+        return CloudinaryUploadResult(secureUrl: secureUrl, publicId: publicId);
       } else {
         print('[v0] Upload failed with status: ${response.statusCode}');
         return null;
@@ -55,6 +58,83 @@ class CloudinaryService {
     } catch (e) {
       print('[v0] Error uploading to Cloudinary: $e');
       return null;
+    }
+  }
+
+  Future<bool> deleteImage(String publicId) async {
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+      // Create signature
+      final stringToSign = 'public_id=$publicId&timestamp=$timestamp$apiSecret';
+      final signature = sha1.convert(utf8.encode(stringToSign)).toString();
+
+      final url = 'https://api.cloudinary.com/v1_1/$cloudName/image/destroy';
+
+      print('[v0] DELETE request → public_id=$publicId');
+
+      final response = await http.post(
+        Uri.parse(url),
+        body: {
+          'public_id': publicId,
+          'api_key': apiKey,
+          'timestamp': timestamp.toString(),
+          'signature': signature,
+        },
+      );
+
+      final jsonResponse = json.decode(response.body);
+      print('[v0] Delete response: $jsonResponse');
+
+      if (response.statusCode == 200) {
+        switch (jsonResponse['result']) {
+          case 'ok':
+            return true;
+          case 'not found':
+            print('[v0] Cloudinary says: image not found → $publicId');
+            return false;
+          default:
+            print('[v0] Unexpected result: ${jsonResponse['result']}');
+            return false;
+        }
+      } else {
+        print(
+          '[v0] Failed with status ${response.statusCode}: ${response.body}',
+        );
+        return false;
+      }
+    } catch (e) {
+      print('[v0] Error deleting from Cloudinary: $e');
+      return false;
+    }
+  }
+
+  /// Extracts public_id from a Cloudinary URL.
+  /// Example:
+  ///   input:  https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg
+  ///   output: sample
+  String extractPublicId(String imageUrl) {
+    try {
+      final uri = Uri.parse(imageUrl);
+      final segments = uri.pathSegments;
+
+      // Example segments:
+      // [ "demo", "image", "upload", "v1234567890", "bazario", "vendor_logos", "hw5bflpl0jtand7n18yi.png" ]
+
+      // Drop first 4 (demo, image, upload, v1234567890)
+      final publicIdSegments = segments.sublist(4);
+
+      // Remove extension
+      final lastSegment = publicIdSegments.last.split('.').first;
+      publicIdSegments[publicIdSegments.length - 1] = lastSegment;
+
+      final publicId = publicIdSegments.join('/');
+
+      print("[v0] Extracted public_id: $publicId");
+      return publicId;
+    } catch (e) {
+      print("[v0] Failed to extract public_id: $e");
+      return '';
     }
   }
 
@@ -69,4 +149,11 @@ class CloudinaryService {
 
     return digest.toString();
   }
+}
+
+class CloudinaryUploadResult {
+  final String secureUrl;
+  final String publicId;
+
+  CloudinaryUploadResult({required this.secureUrl, required this.publicId});
 }
