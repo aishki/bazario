@@ -132,4 +132,19 @@ class EventService {
       return null;
     }
   }
+
+  Future<List<Event>> getRandomEvents({int limit = 3}) async {
+    try {
+      final response = await _api.get('events.php?type=random');
+      if (response['success'] == true && response['events'] != null) {
+        return (response['events'] as List)
+            .map((e) => Event.fromJson(e))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      print('[EventService] Error fetching random events: $e');
+      return [];
+    }
+  }
 }
