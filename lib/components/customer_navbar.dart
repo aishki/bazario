@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 import '../models/customer.dart';
 import '../screens/customer/c_dashboard.dart';
 import '../screens/customer/c_shop.dart';
+import '../screens/customer/c_events.dart';
 
 class CustomerNavBar extends StatefulWidget {
   final String userId;
@@ -28,13 +29,13 @@ class _CustomerNavBarState extends State<CustomerNavBar> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> _screens = [
-      CustomerShop(),
+      CustomerShop(customerId: widget.customerId),
       CustomerDashboard(
         userId: widget.userId,
         username: widget.username,
         customer: widget.customer,
       ),
-      const Center(child: Text("Shop Page")),
+      CustomerEvents(),
     ];
 
     return WillPopScope(

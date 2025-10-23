@@ -10,6 +10,10 @@ class Product {
   final String? addedBy;
   final DateTime? createdAt;
 
+  // ✅ New fields
+  final String? businessPartnerName;
+  final String? businessLogo;
+
   Product({
     required this.id,
     required this.name,
@@ -21,6 +25,8 @@ class Product {
     this.businessPartnerId,
     this.addedBy,
     this.createdAt,
+    this.businessPartnerName,
+    this.businessLogo,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -37,6 +43,9 @@ class Product {
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])
           : null,
+      // ✅ Parse new fields
+      businessPartnerName: json['business_partner_name'],
+      businessLogo: json['business_logo'],
     );
   }
 }

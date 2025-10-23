@@ -39,7 +39,7 @@ class _VendorNavBarState extends State<VendorNavBar> {
       VendorProfileScreen(
         userId: widget.userId,
         vendorId: widget.vendorId,
-        businessName: widget.businessName,
+        vendor: widget.vendor,
       ),
     ];
 
