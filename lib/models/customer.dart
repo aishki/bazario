@@ -12,6 +12,8 @@ class Customer {
   final String? city;
   final String? postalCode;
   final DateTime createdAt;
+  final double? latitude;
+  final double? longitude;
 
   Customer({
     required this.id,
@@ -27,6 +29,8 @@ class Customer {
     this.city,
     this.postalCode,
     required this.createdAt,
+    this.latitude,
+    this.longitude,
   });
 
   factory Customer.fromJson(Map<String, dynamic> json) {
@@ -43,6 +47,12 @@ class Customer {
       address: json['address'],
       city: json['city'],
       postalCode: json['postal_code'],
+      latitude: (json['latitude'] != null)
+          ? double.tryParse(json['latitude'].toString())
+          : null,
+      longitude: (json['longitude'] != null)
+          ? double.tryParse(json['longitude'].toString())
+          : null,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     );
   }
@@ -61,6 +71,8 @@ class Customer {
       'address': address,
       'city': city,
       'postal_code': postalCode,
+      'latitude': latitude,
+      'longitude': longitude,
       'created_at': createdAt.toIso8601String(),
     };
   }
