@@ -17,6 +17,10 @@ class VendorContact {
     this.createdAt,
   });
 
+  factory VendorContact.empty() {
+    return VendorContact();
+  }
+
   factory VendorContact.fromJson(Map<String, dynamic> json) {
     return VendorContact(
       firstName: json['first_name'],

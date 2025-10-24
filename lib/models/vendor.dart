@@ -17,6 +17,17 @@ class SocialLinks {
     this.youtube,
   });
 
+  factory SocialLinks.empty() {
+    return SocialLinks(
+      facebook: '',
+      instagram: '',
+      twitter: '',
+      website: '',
+      tiktok: '',
+      youtube: '',
+    );
+  }
+
   factory SocialLinks.fromJson(Map<String, dynamic>? json) {
     if (json == null) return SocialLinks();
 
@@ -58,6 +69,17 @@ class ContactDisplayPreferences {
     this.showTiktok = false,
     this.showTwitter = false,
   });
+
+  factory ContactDisplayPreferences.empty() {
+    return ContactDisplayPreferences(
+      showInstagram: true,
+      showFacebook: true,
+      showPhone: true,
+      showWebsite: false,
+      showTiktok: false,
+      showTwitter: false,
+    );
+  }
 
   factory ContactDisplayPreferences.fromJson(Map<String, dynamic>? json) {
     if (json == null) return ContactDisplayPreferences();
@@ -121,6 +143,32 @@ class Vendor {
   }) : contactDisplayPreferences =
            contactDisplayPreferences ?? ContactDisplayPreferences();
 
+  // 🆕 Getter methods to access contact fields directly
+  String? get firstName => contact?.firstName;
+  String? get lastName => contact?.lastName;
+  String? get suffix => contact?.suffix;
+  String? get phoneNumber => contact?.phoneNumber;
+  String? get email => contact?.email;
+  String? get position => contact?.position;
+  DateTime? get contactCreatedAt => contact?.createdAt;
+
+  String get fullName => contact?.fullName ?? '';
+
+  factory Vendor.empty() {
+    return Vendor(
+      id: '',
+      businessName: 'My Business',
+      description: '',
+      logoUrl: '',
+      socialLinks: SocialLinks.empty(),
+      verified: false,
+      businessCategory: '',
+      createdAt: DateTime.now(),
+      contact: null, // or VendorContact.empty() if you add one
+      contactDisplayPreferences: ContactDisplayPreferences.empty(),
+    );
+  }
+
   factory Vendor.fromJson(Map<String, dynamic> json) {
     final data = json.containsKey('vendor') ? json['vendor'] : json;
 
@@ -129,13 +177,14 @@ class Vendor {
     VendorContact? contact;
 
     if (data['contact'] != null) {
-      // Nested contact from vendor API
       contact = VendorContact.fromJson(data['contact']);
-    } else if (data['phone_number'] != null || data['contact_email'] != null) {
-      // Fallback: flat fields from login response
+    } else if (data['phone_number'] != null ||
+        data['contact_email'] != null ||
+        data['position'] != null) {
       contact = VendorContact(
         phoneNumber: data['phone_number'],
         email: data['contact_email'] ?? data['email'],
+        position: data['position'],
       );
     }
 

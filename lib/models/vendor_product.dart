@@ -3,7 +3,7 @@ class VendorProduct {
   final String vendorId;
   String? name;
   String? description;
-  final String? imageUrl;
+  String? imageUrl;
   final bool isFeatured;
   final DateTime createdAt;
 
