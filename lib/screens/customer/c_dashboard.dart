@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import '../login_screen.dart';
+
 import '../../models/customer.dart';
 import '../../models/vendor.dart';
 import '../../models/vendor_product.dart';
 import '../../services/vendor_service.dart';
+import '../../services/auth_service.dart';
+
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:shimmer/shimmer.dart';
-import 'c_merchants_profile.dart'; // for merchant profile navigation
+
+import '../login_screen.dart';
+import 'c_merchants_profile.dart';
+import 'c_settings_screen.dart';
+import 'c_notifications_screen.dart'; // Import the notifications screen
 
 class CustomerDashboard extends StatefulWidget {
   final String? userId;
@@ -41,16 +47,15 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   bool isLoadingCarousel = true;
   final PageController _pageController = PageController();
   int _currentPage = 0;
-
-  String? _selectedCategory;
-  final List<String> _categories = ['Food', 'Clothing', 'Crafts', 'Others'];
-  String? _errorMessage;
+  Customer?
+  currentUser; // Assuming currentUser is used to get unread notifications
 
   @override
   void initState() {
     super.initState();
     _loadCarouselImages();
     _loadVendorsWithRandomImages();
+    currentUser = widget.customer; // Initialize currentUser
   }
 
   @override
@@ -112,6 +117,11 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     }
   }
 
+  Stream<int> _getUnreadNotificationCount() {
+    // Placeholder for the actual stream that fetches unread notification count
+    return Stream.fromIterable([0, 1, 2, 3]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final customer = widget.customer;
@@ -132,7 +142,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
               children: [
                 // 🧩 TOP SECTION
                 Expanded(
-                  flex: 9,
+                  flex: 7,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -195,126 +205,234 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                                       widget.username ?? "Guest",
                                       style: const TextStyle(
                                         fontFamily: 'Starla',
-                                        fontSize: 20,
+                                        fontSize: 18,
                                         color: Color(0xFFE8685B),
                                       ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow
+                                          .ellipsis, // Truncate long names
+                                      softWrap:
+                                          false, // Prevents wrapping to the next line
                                     ),
                                   ],
                                 ),
                               ),
 
-                              //Profile Button
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
+                              // 📱 Notification + Menu Row
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // 🔔 Notification Icon
+                                  StreamBuilder<int>(
+                                    stream: _getUnreadNotificationCount(),
+                                    builder: (context, snapshot) {
+                                      final unreadCount = snapshot.data ?? 0;
+                                      return Stack(
+                                        children: [
+                                          InkWell(
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      CNotificationsScreen(
+                                                        customerId:
+                                                            currentUser!.id,
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                            child: const Padding(
+                                              padding: EdgeInsets.all(0),
+                                              child: Icon(
+                                                Icons.notifications,
+                                                color: Color(0xFFB0BEC5),
+                                                size: 22,
+                                              ),
+                                            ),
+                                          ),
+                                          if (unreadCount > 0)
+                                            Positioned(
+                                              right: 0,
+                                              top: 0,
+                                              child: Container(
+                                                width: 14,
+                                                height: 14,
+                                                decoration: BoxDecoration(
+                                                  color: const Color(
+                                                    0xFFFF4444,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(7),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      );
+                                    },
                                   ),
-                                  backgroundColor: const Color(0xFFFFD800),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    side: const BorderSide(
-                                      color: Color(0xFFFF9E17),
-                                      width: 2,
+
+                                  const SizedBox(width: 4),
+
+                                  // ⋮ Three-dot Menu (Custom Popup)
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: () async {
+                                      final RenderBox overlay =
+                                          Overlay.of(
+                                                context,
+                                              ).context.findRenderObject()
+                                              as RenderBox;
+
+                                      final selectedValue = await showMenu<String>(
+                                        context: context,
+                                        position: RelativeRect.fromLTRB(
+                                          overlay.size.width -
+                                              10, // adjust horizontal position
+                                          kToolbarHeight +
+                                              35, // slightly tighter vertical offset
+                                          8,
+                                          0,
+                                        ),
+                                        color: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          side: const BorderSide(
+                                            color: Color(0xFFE0E0E0),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        elevation: 6,
+                                        items: [
+                                          PopupMenuItem(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 4,
+                                            ), // 👈 tighter padding
+                                            height: 30, // 👈 reduce height
+                                            value: 'settings',
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize
+                                                  .min, // 👈 prevent stretching full width
+                                              children: const [
+                                                Icon(
+                                                  Icons.settings,
+                                                  color: Color(0xFF424242),
+                                                  size: 18,
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  'Settings',
+                                                  style: TextStyle(
+                                                    fontFamily: "Poppins",
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Color(0xFF424242),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const PopupMenuDivider(height: 6),
+                                          PopupMenuItem(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 4,
+                                            ),
+                                            height: 30,
+                                            value: 'logout',
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: const [
+                                                Icon(
+                                                  Icons.logout,
+                                                  color: Color(0xFFD32F2F),
+                                                  size: 18,
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  'Log Out',
+                                                  style: TextStyle(
+                                                    fontFamily: "Poppins",
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Color(0xFFD32F2F),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      );
+
+                                      // 🎯 Handle menu actions
+                                      if (selectedValue == 'settings') {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              "Settings coming soon!",
+                                            ),
+                                          ),
+                                        );
+                                        // Navigator.push(
+                                        //   context,
+                                        //   MaterialPageRoute(
+                                        //     builder: (context) =>
+                                        //         SettingsScreen(
+                                        //           customerId:
+                                        //               widget.customerId ?? '',
+                                        //         ),
+                                        //   ),
+                                        // );
+                                      } else if (selectedValue == 'logout') {
+                                        await AuthService().logout();
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Logged out successfully',
+                                              ),
+                                              backgroundColor: Color(
+                                                0xFF06851D,
+                                              ),
+                                            ),
+                                          );
+                                          Navigator.pushAndRemoveUntil(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const LoginScreen(),
+                                            ),
+                                            (route) => false,
+                                          );
+                                        }
+                                      }
+                                    },
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(4),
+                                      child: Icon(
+                                        Icons.more_vert,
+                                        color: Color(0xFFB0BEC5),
+                                        size: 22,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Clicked. Hehe'),
-                                      backgroundColor: Color(0xFF06851D),
-                                    ),
-                                  );
-                                },
-                                child: const Text(
-                                  "View Profile",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontFamily: "Poppins",
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                                ],
                               ),
                             ],
                           ),
                         ),
 
                         const SizedBox(height: 10),
-
-                        // 2 BUTTONS ROW
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            SizedBox(
-                              width: 112,
-                              height: 30,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFFD800),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    side: const BorderSide(
-                                      color: Color(0xFFFF9E17),
-                                      width: 1,
-                                    ),
-                                  ),
-                                ),
-                                onPressed: () {
-                                  if (isBrowseMode) {
-                                    _showBrowseModeDialog(context, "Shop");
-                                  } else {
-                                    Navigator.pushNamed(context, '/c_shop');
-                                  }
-                                },
-                                child: const Text(
-                                  "Shop Now",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontFamily: "Poppins",
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            SizedBox(
-                              width: 120,
-                              height: 30,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF74CC00),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    side: const BorderSide(
-                                      color: Color(0xFF5DA400),
-                                      width: 1,
-                                    ),
-                                  ),
-                                ),
-                                onPressed: () {
-                                  if (isBrowseMode) {
-                                    _showBrowseModeDialog(context, "Events");
-                                  } else {
-                                    Navigator.pushNamed(context, '/c_events');
-                                  }
-                                },
-                                child: const Text(
-                                  "Show Events",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontFamily: "Poppins",
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 8),
 
                         // 🌿 FEATURED PRODUCTS CAROUSEL (local loading state)
                         if (featuredProducts.isNotEmpty)
@@ -348,7 +466,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                                     width:
                                         MediaQuery.of(context).size.width *
                                         0.27,
-                                    height: 150,
+                                    height: 170,
                                     decoration: BoxDecoration(
                                       color: Colors.grey[300],
                                       borderRadius: BorderRadius.circular(16),
@@ -390,14 +508,19 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                                     child: Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceEvenly,
-                                      children: List.generate(4, (colIndex) {
+                                      children: List.generate(3, (colIndex) {
                                         return Container(
                                           width:
                                               MediaQuery.of(
                                                 context,
                                               ).size.width *
-                                              0.18,
-                                          height: 95,
+                                              0.28,
+                                          height:
+                                              (MediaQuery.of(
+                                                context,
+                                              ).size.height) /
+                                              2 *
+                                              0.33,
                                           decoration: BoxDecoration(
                                             color: Colors.grey[300],
                                             borderRadius: BorderRadius.circular(
@@ -416,34 +539,43 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 10),
+
                               // 🏷️ Header Row
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
                                     "Check our Merchants!",
                                     style: TextStyle(
                                       decoration: TextDecoration.none,
                                       fontFamily: 'Starla',
-                                      fontSize: 15,
+                                      fontSize: 22,
                                       color: Color(0xFFFF390F),
                                     ),
                                   ),
-                                  Row(
+                                  Column(
                                     children: [
-                                      const Text(
-                                        "Be one of us!",
-                                        style: TextStyle(
-                                          decoration: TextDecoration.none,
-                                          fontFamily: 'Poppins',
-                                          fontSize: 8,
-                                          color: Color(0xFF276700),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
                                       GestureDetector(
-                                        onTap: () => _showJoinUsDialog(context),
+                                        onTap: () {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                "Feature coming soon! ✨",
+                                                style: TextStyle(
+                                                  fontFamily: 'Poppins',
+                                                ),
+                                              ),
+                                              duration: Duration(seconds: 2),
+                                              backgroundColor: Color(
+                                                0xFFF22031,
+                                              ),
+                                            ),
+                                          );
+                                        },
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 12,
@@ -468,58 +600,84 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                                           ),
                                         ),
                                       ),
+
+                                      const SizedBox(height: 5),
+                                      const Text(
+                                        // Bigger font
+                                        "Be one of us!",
+                                        style: TextStyle(
+                                          decoration: TextDecoration.none,
+                                          fontFamily: 'Poppins',
+                                          fontSize: 8,
+                                          color: Color(0xFF276700),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 10),
 
                               // 🧭 Paginated Merchant Grid
                               Expanded(
-                                child: PageView.builder(
-                                  controller: _pageController,
-                                  onPageChanged: (index) =>
-                                      setState(() => _currentPage = index),
-                                  itemCount: (vendors.length / 8).ceil(),
-                                  itemBuilder: (_, pageIndex) {
-                                    final start = pageIndex * 8;
-                                    final end = (start + 8).clamp(
-                                      0,
-                                      vendors.length,
-                                    );
-                                    final pageVendors = vendors.sublist(
-                                      start,
-                                      end,
-                                    );
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    return PageView.builder(
+                                      controller: _pageController,
+                                      onPageChanged: (index) =>
+                                          setState(() => _currentPage = index),
+                                      itemCount: (vendors.length / 6)
+                                          .ceil(), // 6 per page
+                                      itemBuilder: (_, pageIndex) {
+                                        final start = pageIndex * 6;
+                                        final end = (start + 6).clamp(
+                                          0,
+                                          vendors.length,
+                                        );
+                                        final pageVendors = vendors.sublist(
+                                          start,
+                                          end,
+                                        );
 
-                                    return GridView.builder(
-                                      padding: EdgeInsets.zero,
-                                      physics:
-                                          const NeverScrollableScrollPhysics(),
-                                      shrinkWrap: true,
-                                      gridDelegate:
-                                          const SliverGridDelegateWithFixedCrossAxisCount(
-                                            crossAxisCount: 4,
-                                            mainAxisExtent: 95,
-                                            crossAxisSpacing: 8,
-                                            mainAxisSpacing: 8,
+                                        return GridView.builder(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 10,
+                                            horizontal: 5,
                                           ),
-                                      itemCount: pageVendors.length,
-                                      itemBuilder: (context, index) {
-                                        final vendor = pageVendors[index];
-                                        return GestureDetector(
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) =>
-                                                    CMerchantsProfilePage(
-                                                      vendor: vendor,
-                                                    ),
+                                          physics:
+                                              const NeverScrollableScrollPhysics(),
+                                          shrinkWrap: true,
+                                          gridDelegate:
+                                              SliverGridDelegateWithFixedCrossAxisCount(
+                                                crossAxisCount: 3, // 3 columns
+                                                mainAxisSpacing: 12,
+                                                crossAxisSpacing: 12,
+                                                mainAxisExtent:
+                                                    constraints.maxHeight *
+                                                    0.44, // 44% of grid height per card
+                                              ),
+
+                                          itemCount: pageVendors.length,
+                                          itemBuilder: (context, index) {
+                                            final vendor = pageVendors[index];
+                                            return GestureDetector(
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        CMerchantsProfilePage(
+                                                          vendor: vendor,
+                                                        ),
+                                                  ),
+                                                );
+                                              },
+                                              child: SizedBox(
+                                                child: _buildMerchantCard(
+                                                  vendor,
+                                                ),
                                               ),
                                             );
                                           },
-                                          child: _buildMerchantCard(vendor),
                                         );
                                       },
                                     );
@@ -531,7 +689,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: List.generate(
-                                  (vendors.length / 8).ceil(),
+                                  (vendors.length / 6).ceil(),
                                   (index) {
                                     final isActive = _currentPage == index;
                                     return AnimatedContainer(
@@ -565,18 +723,6 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                 ),
               ],
             ),
-
-            // 🌀 GLOBAL OVERLAY LOADER (covers both sections)
-            if (isLoadingCarousel || isLoadingMerchants)
-              Container(
-                color: Colors.black.withOpacity(0.3),
-                child: Center(
-                  child: LoadingAnimationWidget.inkDrop(
-                    color: const Color(0xFFDD602D),
-                    size: 60,
-                  ),
-                ),
-              ),
           ],
         ),
       ),
@@ -586,97 +732,79 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   Widget _buildMerchantCard(Vendor vendor) {
     final imageUrl = vendorBgImages[vendor.id];
 
-    return Container(
-      width: 336,
-      height: 95,
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFFF390F), width: 3),
-        borderRadius: BorderRadius.circular(10),
-        image: imageUrl != null
-            ? DecorationImage(
-                image: NetworkImage(imageUrl),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(
-                  const Color.fromARGB(255, 120, 34, 17).withOpacity(0.55),
-                  BlendMode.darken,
-                ),
-              )
-            : DecorationImage(
-                image: AssetImage('lib/assets/images/vendor-placeholder.jpg'),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(
-                  Color.fromARGB(255, 120, 34, 17).withOpacity(0.6),
-                  BlendMode.darken,
-                ),
-              ),
-      ),
-      child: Center(
-        child: Text(
-          vendor.businessName.toUpperCase(),
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            decoration: TextDecoration.none,
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontSize: 11,
-          ),
-        ),
-      ),
-    );
-  }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardHeight =
+            constraints.maxHeight * 0.9; // responsive to grid cell height
 
-  Widget _styledField(
-    String label,
-    TextEditingController controller,
-    String hint, {
-    bool isPassword = false,
-    int maxLines = 1,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontFamily: 'Poppins-Medium',
-              fontSize: 13,
-              color: Color(0xFFDD602D),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color.fromARGB(99, 221, 95, 45)),
-            ),
-            child: TextField(
-              controller: controller,
-              obscureText: isPassword,
-              maxLines: maxLines,
-              style: const TextStyle(
-                fontFamily: "Poppins",
-                fontSize: 12,
-                color: Color(0xFF792401),
-              ),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                hintText: hint,
-                hintStyle: const TextStyle(
-                  fontFamily: "Poppins",
-                  fontSize: 12,
-                  color: Color(0xFFDD602D),
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 1.0, end: 1.0),
+          duration: const Duration(milliseconds: 150),
+          builder: (context, scale, child) =>
+              Transform.scale(scale: scale, child: child),
+          child: GestureDetector(
+            onTapDown: (_) => setState(() {}), // to allow visual feedback
+            onTapUp: (_) => setState(() {}), // reset after tap
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CMerchantsProfilePage(vendor: vendor),
+                ),
+              );
+            },
+            child: AnimatedScale(
+              scale: 1.0,
+              duration: const Duration(milliseconds: 150),
+              child: Container(
+                width: double.infinity,
+                height: cardHeight,
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFFFF390F), width: 3),
+                  borderRadius: BorderRadius.circular(10),
+                  image: imageUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(imageUrl),
+                          fit: BoxFit.cover,
+                          colorFilter: ColorFilter.mode(
+                            const Color.fromARGB(
+                              255,
+                              120,
+                              34,
+                              17,
+                            ).withOpacity(0.55),
+                            BlendMode.darken,
+                          ),
+                        )
+                      : DecorationImage(
+                          image: AssetImage(
+                            'lib/assets/images/vendor-placeholder.jpg',
+                          ),
+                          fit: BoxFit.cover,
+                          colorFilter: ColorFilter.mode(
+                            Color.fromARGB(255, 120, 34, 17).withOpacity(0.6),
+                            BlendMode.darken,
+                          ),
+                        ),
+                ),
+                child: Center(
+                  child: Text(
+                    vendor.businessName.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      decoration: TextDecoration.none,
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 11,
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -783,7 +911,7 @@ class _FeaturedProductsCarouselState extends State<FeaturedProductsCarousel> {
               itemCount: products.length,
               carouselController: _controller,
               options: CarouselOptions(
-                height: 120, //featured height
+                height: 115, //featured height
                 viewportFraction: 0.33,
                 enlargeCenterPage: true,
                 enlargeFactor: 0.18,
@@ -824,7 +952,7 @@ class _FeaturedProductsCarouselState extends State<FeaturedProductsCarousel> {
                       child: Image.network(
                         product.imageUrl ?? "",
                         width: 110,
-                        height: 120,
+                        height: 130,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) =>
                             const Icon(Icons.broken_image, color: Colors.grey),
