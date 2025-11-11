@@ -180,7 +180,7 @@ class _VendorMyDocsState extends State<VendorMyDocs> {
   Widget _buildHeaderBox() {
     final completedCount = _docs == null
         ? 0
-        : _docs!.where((d) => d.fileUrl != null).length;
+        : _docs!.where((d) => d.status == 'approved').length;
 
     return Container(
       decoration: BoxDecoration(
@@ -216,7 +216,7 @@ class _VendorMyDocsState extends State<VendorMyDocs> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '$completedCount out of 4 Completed',
+                  '$completedCount out of 4 Approved',
                   style: const TextStyle(
                     fontSize: 12,
                     fontFamily: 'Poppins',
@@ -514,10 +514,10 @@ class DocumentTile extends StatelessWidget {
   Future<void> _viewFile(BuildContext context) async {
     if (doc.fileUrl == null) return;
 
-    final url = Uri.parse(doc.fileUrl!);
     final lower = doc.fileUrl!.toLowerCase();
+    final url = Uri.parse(doc.fileUrl!);
 
-    // treat common image extensions as images
+    // ✅ Check if it's an image file
     final isImage =
         lower.endsWith('.png') ||
         lower.endsWith('.jpg') ||
@@ -525,18 +525,44 @@ class DocumentTile extends StatelessWidget {
         lower.endsWith('.gif') ||
         lower.contains('/image/');
 
+    // 🖼️ If image, preview it in a dialog
     if (isImage) {
-      // image preview dialog
       showDialog(
         context: context,
         builder: (_) => Dialog(
-          child: InteractiveViewer(child: Image.network(doc.fileUrl!)),
+          insetPadding: const EdgeInsets.all(16),
+          child: InteractiveViewer(
+            child: Image.network(
+              doc.fileUrl!,
+              errorBuilder: (context, error, stackTrace) {
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'The system can only view images. Other file types will be available soon.',
+                  ),
+                );
+              },
+            ),
+          ),
         ),
       );
       return;
     }
 
-    // otherwise open externally (PDF / DOC)
+    // 📄 If it's a PDF or DOC, show a friendly message instead of opening
+    if (lower.endsWith('.pdf') ||
+        lower.endsWith('.doc') ||
+        lower.endsWith('.docx')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📄 PDF viewing coming soon.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // 🌐 Fallback for other file types: try external launch
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } else {
@@ -548,7 +574,7 @@ class DocumentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uploaded = doc.fileUrl != null;
+    // final uploaded = doc.fileUrl != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
