@@ -355,7 +355,6 @@ class _VendorPopUpsState extends State<VendorPopUps>
               const SizedBox(height: 8),
 
               // Row 4: Apply Button + Upload Receipt
-              // Row 4: Apply Button + Upload Receipt
               Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
