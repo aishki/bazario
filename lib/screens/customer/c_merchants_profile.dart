@@ -81,7 +81,7 @@ class CMerchantsProfilePage extends StatelessWidget {
                                         vendor.logoUrl!.isNotEmpty)
                                     ? NetworkImage(vendor.logoUrl!)
                                     : const AssetImage(
-                                            "lib/assets/images/logo_img.jpg",
+                                            "lib/assets/images/default_profile.jpg",
                                           )
                                           as ImageProvider,
                                 fit: BoxFit.cover,
@@ -306,6 +306,7 @@ class CMerchantsProfilePage extends StatelessWidget {
                                 ],
                               ),
                               child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Text(
                                     product.name ?? "Unnamed Product",
@@ -316,14 +317,20 @@ class CMerchantsProfilePage extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 6),
-                                  Text(
-                                    product.description ??
-                                        "No description provided.",
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF276700),
-                                      height: 1.5,
+
+                                  // 🌀 Scrollable description text
+                                  Expanded(
+                                    child: SingleChildScrollView(
+                                      child: Text(
+                                        product.description ??
+                                            "No description provided.",
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF276700),
+                                          height: 1.5,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
