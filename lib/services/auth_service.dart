@@ -1,4 +1,5 @@
 import 'api_service.dart';
+import 'tutorial_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
@@ -17,7 +18,7 @@ class AuthService {
     });
 
     if (response['success'] == true && response['user'] != null) {
-      await _storeUserSession(response['user']);
+      await storeUserSession(response['user']);
     }
 
     return response;
@@ -30,7 +31,7 @@ class AuthService {
     });
   }
 
-  Future<void> _storeUserSession(Map<String, dynamic> user) async {
+  Future<void> storeUserSession(Map<String, dynamic> user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_userIdKey, user['id'] ?? '');
     await prefs.setString(_userRoleKey, user['role'] ?? '');
@@ -63,6 +64,8 @@ class AuthService {
       await prefs.remove(_vendorIdKey);
       await prefs.remove(_businessNameKey);
       await prefs.setBool(_isLoggedInKey, false);
+
+      TutorialService.resetSessionTutorials();
 
       print('[v0] User session cleared successfully');
     } catch (e) {
