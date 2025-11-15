@@ -35,6 +35,8 @@ switch ($method) {
                         c.address,
                         c.city,
                         c.postal_code,
+                        c.latitude,
+                        c.longitude,
                         c.created_at
                       FROM customers c
                       JOIN users u ON c.id = u.id
@@ -71,6 +73,8 @@ switch ($method) {
                         c.address,
                         c.city,
                         c.postal_code,
+                        c.latitude,
+                        c.longitude,
                         c.created_at
                       FROM customers c
                       JOIN users u ON c.id = u.id
@@ -178,13 +182,12 @@ switch ($method) {
         }
 
         try {
+            // --- Update CUSTOMER TABLE ---
             $update_fields = [];
             $params = [":customer_id" => $data->customer_id];
 
             $fields = [
                 "profile_url",
-                "username",
-                "email",
                 "first_name",
                 "middle_name",
                 "last_name",
@@ -192,7 +195,9 @@ switch ($method) {
                 "phone_number",
                 "address",
                 "city",
-                "postal_code"
+                "postal_code",
+                "latitude",
+                "longitude"
             ];
 
             foreach ($fields as $field) {
@@ -208,6 +213,27 @@ switch ($method) {
                 $stmt->execute($params);
             }
 
+            // --- Update USERS TABLE (for username/email) ---
+            if (isset($data->username) || isset($data->email)) {
+                $userUpdateFields = [];
+                $userParams = [":id" => $data->customer_id];
+
+                if (isset($data->username)) {
+                    $userUpdateFields[] = "username = :username";
+                    $userParams[":username"] = $data->username;
+                }
+                if (isset($data->email)) {
+                    $userUpdateFields[] = "email = :email";
+                    $userParams[":email"] = $data->email;
+                }
+
+                if (!empty($userUpdateFields)) {
+                    $userQuery = "UPDATE users SET " . implode(", ", $userUpdateFields) . " WHERE id = :id";
+                    $userStmt = $db->prepare($userQuery);
+                    $userStmt->execute($userParams);
+                }
+            }
+
             echo json_encode([
                 "success" => true,
                 "message" => "Customer updated successfully"
@@ -219,6 +245,7 @@ switch ($method) {
             ]);
         }
         break;
+
 
 
     // -----------------------------------------------------------------
