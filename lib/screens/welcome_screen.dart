@@ -127,81 +127,87 @@ class WelcomeScreen extends StatelessWidget {
     required String iconImage,
     required Color textColor,
   }) {
-    return Container(
-      height: 120,
-      decoration: BoxDecoration(
-        image: DecorationImage(image: AssetImage(bgImage), fit: BoxFit.cover),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor, width: 2),
-      ),
-      child: Row(
-        children: [
-          // Left side with text
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-              child: Center(
-                child: Text(
-                  leftText,
-                  style: TextStyle(
-                    fontFamily: 'Starla',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
+    return GestureDetector(
+      onTap: onPressed, // ✅ Whole rectangle clickable
+      child: Container(
+        height: 120,
+        decoration: BoxDecoration(
+          image: DecorationImage(image: AssetImage(bgImage), fit: BoxFit.cover),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor, width: 2),
+        ),
+        child: Row(
+          children: [
+            // Left side with text
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 5,
+                ),
+                child: Center(
+                  child: Text(
+                    leftText,
+                    style: TextStyle(
+                      fontFamily: 'Starla',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: textColor,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ),
             ),
-          ),
-          // Vertical divider (full height)
-          Container(width: 1, color: borderColor),
-          // Right side with image and button
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    iconImage,
-                    height: 55,
-                    width: 55,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: 48,
-                    height: 20, // smaller button
-                    child: OutlinedButton(
-                      onPressed: onPressed,
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        side: BorderSide(color: borderColor, width: 2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(5),
+            // Vertical divider (full height)
+            Container(width: 1, color: borderColor),
+            // Right side with image and button
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      iconImage,
+                      height: 55,
+                      width: 55,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: 48,
+                      height: 20,
+                      child: OutlinedButton(
+                        onPressed: onPressed,
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          side: BorderSide(color: borderColor, width: 2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 4,
+                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 4,
-                        ),
-                      ),
-                      child: Text(
-                        buttonText,
-                        style: TextStyle(
-                          fontFamily: 'Bagel Fat One',
-                          fontSize: 9,
-                          fontWeight: FontWeight.w400,
-                          color: borderColor,
+                        child: Text(
+                          buttonText,
+                          style: TextStyle(
+                            fontFamily: 'Bagel Fat One',
+                            fontSize: 9,
+                            fontWeight: FontWeight.w400,
+                            color: borderColor,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
