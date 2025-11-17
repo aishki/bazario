@@ -65,6 +65,7 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     return null;
   }
 
+  // Remove the delivery fee calculation from here
   // 🧭 Compute Haversine distance
   double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     const p = 0.017453292519943295; // π/180
