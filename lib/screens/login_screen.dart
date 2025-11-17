@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'register_screen.dart';
-import 'customer/c_dashboard.dart';
 import '../components/vendor_navbar.dart';
 import '../components/customer_navbar.dart';
+import '../services/auth_service.dart';
 import '../models/customer.dart';
 import '../models/vendor.dart';
 import '../models/vendor_contact.dart';
@@ -58,6 +58,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 backgroundColor: Colors.green,
               ),
             );
+
+            await AuthService().storeUserSession({
+              'id': responseData['user_id'],
+              'role': responseData['role'],
+              'vendor_id': responseData['vendor_id'] ?? '',
+              'business_name':
+                  responseData['business_name'] ??
+                  responseData['username'] ??
+                  '',
+            });
 
             // Navigate based on role
             if (responseData['role'] == 'vendor') {

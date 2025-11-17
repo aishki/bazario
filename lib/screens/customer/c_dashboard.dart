@@ -47,8 +47,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   bool isLoadingCarousel = true;
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  Customer?
-  currentUser; // Assuming currentUser is used to get unread notifications
+  Customer? currentUser;
 
   @override
   void initState() {
@@ -259,8 +258,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                                               right: 0,
                                               top: 0,
                                               child: Container(
-                                                width: 14,
-                                                height: 14,
+                                                width: 9,
+                                                height: 9,
                                                 decoration: BoxDecoration(
                                                   color: const Color(
                                                     0xFFFF4444,
