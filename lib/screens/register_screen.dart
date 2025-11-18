@@ -6,6 +6,9 @@ import 'package:iconify_flutter/icons/material_symbols.dart';
 import 'package:iconify_flutter/icons/gridicons.dart';
 import 'dart:convert';
 import 'dart:async'; // Import for Timer
+import '../services/validation_service.dart';
+import '../services/availability_check_service.dart';
+import '../utils/debouncer.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -32,9 +35,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordFocus = FocusNode();
   final _retypePasswordFocus = FocusNode();
 
-  Timer? _usernameDebounce;
-  Timer? _emailDebounce;
-  Timer? _phoneDebounce;
+  final _usernameDebouncer = Debouncer();
+  final _emailDebouncer = Debouncer();
+  final _phoneDebouncer = Debouncer();
 
   // Error messages for each field
   Map<String, String?> _fieldErrors = {
@@ -76,9 +79,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    _usernameDebounce?.cancel();
-    _emailDebounce?.cancel();
-    _phoneDebounce?.cancel();
+    _usernameDebouncer.dispose();
+    _emailDebouncer.dispose();
+    _phoneDebouncer.dispose();
 
     _usernameFocus.dispose();
     _emailFocus.dispose();
@@ -94,222 +97,97 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _onUsernameChanged(String value) {
-    _usernameDebounce?.cancel();
-    if (value.isEmpty) {
+    // First check format
+    final formatError = ValidationService.validateUsernameFormat(value);
+    if (formatError != null) {
       setState(() {
-        _fieldErrors["username"] = "Username is required";
+        _fieldErrors["username"] = formatError;
         _fieldValid["username"] = false;
       });
       return;
     }
 
-    _usernameDebounce = Timer(const Duration(milliseconds: 500), () {
-      _checkUsernameAvailability(value);
-    });
+    // Then check availability with debounce
+    _usernameDebouncer.run(() => _checkUsernameAvailability(value));
   }
 
   Future<void> _checkUsernameAvailability(String username) async {
-    if (username.isEmpty) {
-      setState(() {
-        _fieldErrors["username"] = "Username is required";
-        _fieldValid["username"] = false;
-      });
-      return;
-    }
-
-    try {
-      final response = await http.post(
-        Uri.parse("https://bazario-backend-aszl.onrender.com/api/auth.php"),
-        headers: {"Content-Type": "application/json"},
-        body: json.encode({"action": "check_username", "username": username}),
-      );
-
-      final data = json.decode(response.body);
-      if (data["status"] == "error") {
-        setState(() {
-          _fieldErrors["username"] =
-              "This username isn't available. Please try another.";
-          _fieldValid["username"] = false;
-        });
-      } else {
-        setState(() {
-          _fieldErrors["username"] = null;
-          _fieldValid["username"] = true;
-        });
-      }
-    } catch (_) {}
+    final error = await AvailabilityCheckService.checkUsernameAvailability(
+      username,
+    );
+    setState(() {
+      _fieldErrors["username"] = error;
+      _fieldValid["username"] = error == null;
+      _checkAndClearGlobalError();
+    });
   }
 
   void _onEmailChanged(String value) {
-    _emailDebounce?.cancel();
-
-    final emailRegex = RegExp(r"^[\w\.-]+@[\w\.-]+\.\w+$");
-    if (value.isEmpty) {
+    // First check format
+    final formatError = ValidationService.validateEmailFormat(value);
+    if (formatError != null) {
       setState(() {
-        _fieldErrors["email"] = "Email is required";
+        _fieldErrors["email"] = formatError;
         _fieldValid["email"] = false;
       });
       return;
     }
 
-    if (!emailRegex.hasMatch(value)) {
-      setState(() {
-        _fieldErrors["email"] = "Enter a valid email address.";
-        _fieldValid["email"] = false;
-      });
-      return;
-    }
-
-    _emailDebounce = Timer(const Duration(milliseconds: 500), () {
-      _checkEmailAvailability(value);
-    });
+    // Then check availability with debounce
+    _emailDebouncer.run(() => _checkEmailAvailability(value));
   }
 
   Future<void> _checkEmailAvailability(String email) async {
-    final emailRegex = RegExp(r"^[\w\.-]+@[\w\.-]+\.\w+$");
-    if (!emailRegex.hasMatch(email)) {
-      setState(() {
-        _fieldErrors["email"] = "Enter a valid email address.";
-        _fieldValid["email"] = false;
-      });
-      return;
-    }
-
-    try {
-      final response = await http.post(
-        Uri.parse("https://bazario-backend-aszl.onrender.com/api/auth.php"),
-        headers: {"Content-Type": "application/json"},
-        body: json.encode({"action": "check_email", "email": email}),
-      );
-
-      final data = json.decode(response.body);
-      if (data["status"] == "error") {
-        setState(() {
-          _fieldErrors["email"] =
-              "This email isn't available. Please try another.";
-          _fieldValid["email"] = false;
-        });
-      } else {
-        setState(() {
-          _fieldErrors["email"] = null;
-          _fieldValid["email"] = true;
-        });
-      }
-    } catch (_) {}
-  }
-
-  void _onPhoneChanged(String value) {
-    _phoneDebounce?.cancel();
-
-    if (value.isEmpty) {
-      setState(() {
-        _fieldErrors["phone"] = "Phone number is required";
-        _fieldValid["phone"] = false;
-      });
-      return;
-    }
-
-    final phoneRegex = RegExp(r"^\+?[0-9]{10,15}$");
-    if (!phoneRegex.hasMatch(value)) {
-      setState(() {
-        _fieldErrors["phone"] = "Enter a valid phone number.";
-        _fieldValid["phone"] = false;
-      });
-      return;
-    }
-
-    _phoneDebounce = Timer(const Duration(milliseconds: 500), () {
-      _checkPhoneAvailability(value);
+    final error = await AvailabilityCheckService.checkEmailAvailability(email);
+    setState(() {
+      _fieldErrors["email"] = error;
+      _fieldValid["email"] = error == null;
+      _checkAndClearGlobalError();
     });
   }
 
-  Future<void> _checkPhoneAvailability(String phone) async {
-    final phoneRegex = RegExp(r"^\+?[0-9]{10,15}$");
-    if (!phoneRegex.hasMatch(phone)) {
+  void _onPhoneChanged(String value) {
+    // First check format
+    final formatError = ValidationService.validatePhoneFormat(value);
+    if (formatError != null) {
       setState(() {
-        _fieldErrors["phone"] = "Enter a valid phone number.";
+        _fieldErrors["phone"] = formatError;
         _fieldValid["phone"] = false;
       });
       return;
     }
 
-    try {
-      final response = await http.post(
-        Uri.parse("https://bazario-backend-aszl.onrender.com/api/auth.php"),
-        headers: {"Content-Type": "application/json"},
-        body: json.encode({"action": "check_phone", "phone": phone}),
-      );
+    // Then check availability with debounce
+    _phoneDebouncer.run(() => _checkPhoneAvailability(value));
+  }
 
-      final data = json.decode(response.body);
-      if (data["status"] == "error") {
-        setState(() {
-          _fieldErrors["phone"] =
-              "This phone number isn't available. Please try another.";
-          _fieldValid["phone"] = false;
-        });
-      } else {
-        setState(() {
-          _fieldErrors["phone"] = null;
-          _fieldValid["phone"] = true;
-        });
-      }
-    } catch (_) {}
+  Future<void> _checkPhoneAvailability(String phone) async {
+    final error = await AvailabilityCheckService.checkPhoneAvailability(phone);
+    setState(() {
+      _fieldErrors["phone"] = error;
+      _fieldValid["phone"] = error == null;
+      _checkAndClearGlobalError();
+    });
   }
 
   void _validateRetypePassword(String retypePassword) {
-    if (retypePassword.isEmpty) {
-      setState(() {
-        _fieldErrors["retype_password"] = "Please retype your password.";
-        _fieldValid["retype_password"] = false;
-      });
-      return;
-    }
-
-    if (retypePassword != _passwordController.text.trim()) {
-      setState(() {
-        _fieldErrors["retype_password"] = "Passwords do not match.";
-        _fieldValid["retype_password"] = false;
-      });
-    } else {
-      setState(() {
-        _fieldErrors["retype_password"] = null;
-        _fieldValid["retype_password"] = true;
-      });
-    }
-  }
-
-  void _validatePhone(String phone) {
-    final phoneRegex = RegExp(r"^\+?[0-9]{10,15}$");
-    if (!phoneRegex.hasMatch(phone)) {
-      setState(() {
-        _fieldErrors["phone"] = "Enter a valid phone number.";
-        _fieldValid["phone"] = false;
-      });
-    } else {
-      setState(() {
-        _fieldErrors["phone"] = null;
-        _fieldValid["phone"] = true;
-      });
-    }
+    final error = ValidationService.validatePasswordMatch(
+      _passwordController.text.trim(),
+      retypePassword,
+    );
+    setState(() {
+      _fieldErrors["retype_password"] = error;
+      _fieldValid["retype_password"] = error == null;
+      _checkAndClearGlobalError();
+    });
   }
 
   void _validatePassword(String password) {
-    final errors = <String>[];
-
-    if (password.length < 8) errors.add("at least 8 characters");
-    if (!RegExp(r'[A-Z]').hasMatch(password)) errors.add("1 uppercase letter");
-    if (!RegExp(r'[0-9]').hasMatch(password)) errors.add("1 number");
-    if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(password))
-      errors.add("1 symbol");
-
+    final error = ValidationService.validatePasswordStrength(password);
     setState(() {
-      if (errors.isEmpty) {
-        _fieldErrors["password"] = null;
-        _fieldValid["password"] = true;
-      } else {
-        _fieldErrors["password"] = "Password must have ${errors.join(", ")}.";
-        _fieldValid["password"] = false;
-      }
+      _fieldErrors["password"] = error;
+      _fieldValid["password"] = error == null;
+      _checkAndClearGlobalError();
     });
   }
 
@@ -553,19 +431,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    // Final check on all fields before sending
-    _checkUsernameAvailability(_usernameController.text.trim());
-    _checkEmailAvailability(_emailController.text.trim());
-    _validatePhone(_phoneController.text.trim());
-    _validatePassword(_passwordController.text.trim());
-    _validateRetypePassword(_retypePasswordController.text.trim());
+    final username = _usernameController.text.trim();
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text.trim();
+    final retypePassword = _retypePasswordController.text.trim();
 
-    // Check if any field is still invalid
+    // Validate formats first
+    final usernameFormatError = ValidationService.validateUsernameFormat(
+      username,
+    );
+    final emailFormatError = ValidationService.validateEmailFormat(email);
+    final phoneFormatError = ValidationService.validatePhoneFormat(phone);
+    final passwordError = ValidationService.validatePasswordStrength(password);
+    final retypePasswordError = ValidationService.validatePasswordMatch(
+      password,
+      retypePassword,
+    );
+
+    // Update state with format validation results
+    setState(() {
+      _fieldErrors["username"] = usernameFormatError;
+      _fieldValid["username"] = usernameFormatError == null;
+
+      _fieldErrors["email"] = emailFormatError;
+      _fieldValid["email"] = emailFormatError == null;
+
+      _fieldErrors["phone"] = phoneFormatError;
+      _fieldValid["phone"] = phoneFormatError == null;
+
+      _fieldErrors["password"] = passwordError;
+      _fieldValid["password"] = passwordError == null;
+
+      _fieldErrors["retype_password"] = retypePasswordError;
+      _fieldValid["retype_password"] = retypePasswordError == null;
+    });
+
+    if (usernameFormatError != null ||
+        emailFormatError != null ||
+        phoneFormatError != null ||
+        passwordError != null ||
+        retypePasswordError != null) {
+      setState(() {
+        _errorMessage = "Please fix the errors above.";
+        _isLoading = false;
+      });
+      return;
+    }
+
+    await _checkUsernameAvailability(username);
+    await _checkEmailAvailability(email);
+    await _checkPhoneAvailability(phone);
+
     if (!_fieldValid["username"]! ||
         !_fieldValid["email"]! ||
-        !_fieldValid["password"]! ||
-        !_fieldValid["phone"]! ||
-        !_fieldValid["retype_password"]!) {
+        !_fieldValid["phone"]!) {
       setState(() {
         _errorMessage = "Please fix the errors above.";
         _isLoading = false;
@@ -679,6 +599,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
         _isLoading = false;
       });
+    }
+  }
+
+  void _checkAndClearGlobalError() {
+    if (_errorMessage != null &&
+        _fieldValid["username"] == true &&
+        _fieldValid["email"] == true &&
+        _fieldValid["phone"] == true &&
+        _fieldValid["password"] == true &&
+        _fieldValid["retype_password"] == true) {
+      _errorMessage = null;
     }
   }
 
@@ -849,7 +780,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     fontFamily: 'Poppins-Medium',
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF276700),
+                    color: Color(0xFF74CC00),
                   ),
                 ),
                 Row(
