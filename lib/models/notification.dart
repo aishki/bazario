@@ -4,7 +4,8 @@ class AppNotification {
   final String orderId;
   final String message;
   final String status;
-  final bool read;
+  final String type;
+  bool read;
   final DateTime createdAt;
 
   AppNotification({
@@ -13,6 +14,7 @@ class AppNotification {
     required this.orderId,
     required this.message,
     required this.status,
+    required this.type,
     required this.read,
     required this.createdAt,
   });
@@ -24,6 +26,9 @@ class AppNotification {
       orderId: json['order_id'] ?? '',
       message: json['message'] ?? '',
       status: json['status'] ?? '',
+      type:
+          json['type'] ??
+          'general', // parse type from JSON with default fallback
       read: json['read'] == true || json['read'] == 1,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     );
@@ -36,6 +41,7 @@ class AppNotification {
       'order_id': orderId,
       'message': message,
       'status': status,
+      'type': type, // include type in JSON serialization
       'read': read,
       'created_at': createdAt.toIso8601String(),
     };
