@@ -1,33 +1,30 @@
 class AppNotification {
   final String id;
-  final String customerId;
+  final String userId;
   final String orderId;
-  final String title;
   final String message;
   final String status;
-  final bool isRead;
+  final bool read;
   final DateTime createdAt;
 
   AppNotification({
     required this.id,
-    required this.customerId,
+    required this.userId,
     required this.orderId,
-    required this.title,
     required this.message,
     required this.status,
-    required this.isRead,
+    required this.read,
     required this.createdAt,
   });
 
   factory AppNotification.fromJson(Map<String, dynamic> json) {
     return AppNotification(
       id: json['id'] ?? '',
-      customerId: json['customer_id'] ?? '',
+      userId: json['user_id'] ?? '',
       orderId: json['order_id'] ?? '',
-      title: json['title'] ?? '',
       message: json['message'] ?? '',
       status: json['status'] ?? '',
-      isRead: json['is_read'] == true || json['is_read'] == 1,
+      read: json['read'] == true || json['read'] == 1,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
     );
   }
@@ -35,12 +32,11 @@ class AppNotification {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'customer_id': customerId,
+      'user_id': userId,
       'order_id': orderId,
-      'title': title,
       'message': message,
       'status': status,
-      'is_read': isRead,
+      'read': read,
       'created_at': createdAt.toIso8601String(),
     };
   }

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../models/notifications.dart';
+import '../models/notification.dart';
 import '../utils/constants.dart';
 
 class NotificationService {
@@ -23,7 +23,7 @@ class NotificationService {
   Future<void> _checkForNotifications(String customerId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/notifications.php?customer_id=$customerId'),
+        Uri.parse('$baseUrl/notifications.php?user_id=$customerId'),
       );
 
       if (response.statusCode == 200) {
@@ -40,7 +40,7 @@ class NotificationService {
   Future<List<AppNotification>> getNotifications(String customerId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/notifications.php?customer_id=$customerId'),
+        Uri.parse('$baseUrl/notifications.php?user_id=$customerId'),
       );
 
       if (response.statusCode == 200) {
@@ -65,7 +65,7 @@ class NotificationService {
       final response = await http.put(
         Uri.parse('$baseUrl/notifications.php'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({'notification_id': notificationId, 'is_read': true}),
+        body: json.encode({'notification_id': notificationId, 'read': true}),
       );
 
       if (response.statusCode == 200) {
@@ -82,9 +82,7 @@ class NotificationService {
   Future<int> getUnreadCount(String customerId) async {
     try {
       final response = await http.get(
-        Uri.parse(
-          '$baseUrl/notifications.php?customer_id=$customerId&unread=true',
-        ),
+        Uri.parse('$baseUrl/notifications.php?user_id=$customerId&unread=true'),
       );
 
       if (response.statusCode == 200) {

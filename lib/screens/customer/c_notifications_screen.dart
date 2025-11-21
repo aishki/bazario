@@ -127,12 +127,12 @@ class _CNotificationsScreenState extends State<CNotificationsScreen> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: notif.isRead ? 0 : 2,
-      color: notif.isRead ? Colors.white : const Color(0xFFFFF9E6),
+      elevation: notif.read ? 0 : 2,
+      color: notif.read ? Colors.white : const Color(0xFFFFF9E6),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
-          if (!notif.isRead) {
+          if (!notif.read) {
             _notificationService.markAsRead(notif.id).then((_) {
               setState(() {
                 _notificationsFuture = _notificationService.getNotifications(
@@ -167,15 +167,17 @@ class _CNotificationsScreenState extends State<CNotificationsScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            notif.title,
+                            notif.message,
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: Colors.black87,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (!notif.isRead)
+                        if (!notif.read)
                           Container(
                             width: 8,
                             height: 8,
@@ -187,17 +189,6 @@ class _CNotificationsScreenState extends State<CNotificationsScreen> {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      notif.message,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[700],
-                        height: 1.4,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
                     Text(
                       _formatTime(notif.createdAt),
                       style: TextStyle(fontSize: 12, color: Colors.grey[500]),
