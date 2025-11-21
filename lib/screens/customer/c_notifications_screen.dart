@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/notification.dart';
 import '../../services/notification_service.dart';
-import '../../utils/constants.dart';
 
 class CNotificationsScreen extends StatefulWidget {
   final String customerId;
@@ -107,94 +106,197 @@ class _CNotificationsScreenState extends State<CNotificationsScreen> {
   Widget _buildNotificationCard(AppNotification notif) {
     Color statusColor = const Color(0xFFFF9E17);
     IconData statusIcon = Icons.hourglass_bottom;
+    Widget? statusLabelWidget;
 
-    if (notif.status == 'paid') {
-      statusColor = const Color(0xFFFF9E17);
-      statusIcon = Icons.error_outline;
-    } else if (notif.status == 'payment verified') {
-      statusColor = const Color(0xFF74CC00);
-      statusIcon = Icons.check_circle_outline;
-    } else if (notif.status == 'on the way') {
-      statusColor = const Color(0xFF2196F3);
-      statusIcon = Icons.local_shipping_outlined;
-    } else if (notif.status == 'completed') {
-      statusColor = const Color(0xFF74CC00);
-      statusIcon = Icons.check_circle;
-    } else if (notif.status == 'cancelled') {
-      statusColor = const Color(0xFFEF5350);
-      statusIcon = Icons.cancel_outlined;
+    // Determine status color, icon, and label based on notif.status
+    switch (notif.status) {
+      case 'paid':
+        statusColor = const Color(0xFFFF9E17);
+        statusIcon = Icons.error_outline;
+        statusLabelWidget = Row(
+          children: const [
+            Icon(Icons.error_outline, size: 16, color: Color(0xFFFF9E17)),
+            SizedBox(width: 4),
+            Text(
+              "Payment Under Review",
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFFF9E17),
+              ),
+            ),
+          ],
+        );
+        break;
+      case 'payment verified':
+        statusColor = const Color(0xFF74CC00);
+        statusIcon = Icons.check_circle_outline;
+        statusLabelWidget = Row(
+          children: const [
+            Icon(
+              Icons.check_circle_outline,
+              size: 16,
+              color: Color(0xFF74CC00),
+            ),
+            SizedBox(width: 4),
+            Text(
+              "Order is being prepared",
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF74CC00),
+              ),
+            ),
+          ],
+        );
+        break;
+      case 'to receive':
+        statusColor = const Color(0xFF2196F3);
+        statusIcon = Icons.local_shipping_outlined;
+        statusLabelWidget = Row(
+          children: const [
+            Icon(Icons.local_shipping, size: 16, color: Color(0xFFDD602D)),
+            SizedBox(width: 4),
+            Text(
+              "The courier is on the way!",
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFDD602D),
+              ),
+            ),
+          ],
+        );
+        break;
+      case 'completed':
+        statusColor = const Color(0xFF74CC00);
+        statusIcon = Icons.check_circle;
+        statusLabelWidget = Row(
+          children: const [
+            Icon(Icons.check_circle, size: 16, color: Color(0xFF569109)),
+            SizedBox(width: 4),
+            Text(
+              "Completed",
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF569109),
+              ),
+            ),
+          ],
+        );
+        break;
+      case 'cancelled':
+        statusColor = const Color(0xFFEF5350);
+        statusIcon = Icons.cancel_outlined;
+        statusLabelWidget = Row(
+          children: const [
+            Icon(Icons.cancel, size: 16, color: Color(0xFFFF390F)),
+            SizedBox(width: 4),
+            Text(
+              "Cancelled",
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFFF390F),
+              ),
+            ),
+          ],
+        );
+        break;
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: notif.read ? 0 : 2,
-      color: notif.read ? Colors.white : const Color(0xFFFFF9E6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () {
-          if (!notif.read) {
-            _notificationService.markAsRead(notif.id).then((_) {
-              setState(() {
-                _notificationsFuture = _notificationService.getNotifications(
-                  widget.customerId,
-                );
-              });
-            });
-          }
-        },
-        borderRadius: BorderRadius.circular(12),
+    bool isLongMessage = notif.message.length > 60;
+    bool isExpanded = false;
+
+    return StatefulBuilder(
+      builder: (context, setStateCard) => Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: notif.read ? 0 : 2,
+        color: notif.read ? Colors.white : const Color(0xFFFFF9E6),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(statusIcon, color: statusColor, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Mini Header with icon + label
+              if (statusLabelWidget != null) ...[
+                statusLabelWidget,
+                const SizedBox(height: 6),
+              ],
+
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(statusIcon, color: statusColor, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            notif.message,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          notif.message,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
                           ),
+                          maxLines: isExpanded ? null : 1,
+                          overflow: isExpanded
+                              ? TextOverflow.visible
+                              : TextOverflow.ellipsis,
                         ),
-                        if (!notif.read)
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFF9E17),
-                              borderRadius: BorderRadius.circular(4),
+                        const SizedBox(height: 6),
+
+                        // Time + Expand Icon Row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _formatTime(notif.createdAt),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                              ),
                             ),
-                          ),
+                            if (isLongMessage)
+                              GestureDetector(
+                                onTap: () async {
+                                  if (!notif.read) {
+                                    await _notificationService.markAsRead(
+                                      notif.id,
+                                    );
+                                    setState(() {
+                                      notif.read = true;
+                                    });
+                                  }
+                                  setStateCard(() {
+                                    isExpanded = !isExpanded;
+                                  });
+                                },
+                                child: Icon(
+                                  isExpanded
+                                      ? Icons.keyboard_arrow_up
+                                      : Icons.keyboard_arrow_down,
+                                  size: 20,
+                                  color: const Color(0xFFFF9E17),
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _formatTime(notif.createdAt),
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -207,16 +309,10 @@ class _CNotificationsScreenState extends State<CNotificationsScreen> {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
-    }
+    if (difference.inMinutes < 1) return 'Just now';
+    if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
+    if (difference.inHours < 24) return '${difference.inHours}h ago';
+    if (difference.inDays < 7) return '${difference.inDays}d ago';
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
   }
 }
