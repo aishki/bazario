@@ -3,10 +3,12 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/notification.dart';
 import '../utils/constants.dart';
+import 'local_notification_service.dart';
 
 class NotificationService {
   static const String baseUrl = Constants.apiBaseUrl;
   Timer? _pollTimer;
+  final Set<String> _shownNotificationIds = {};
 
   // This simulates real-time updates by checking the database periodically
   void startNotificationListener(String customerId) {
@@ -28,12 +30,38 @@ class NotificationService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data['success'] == true) {
-          // Notifications are fetched and can be displayed
+        if (data['success'] == true && data['notifications'] != null) {
+          for (var notif in data['notifications']) {
+            if (notif['read'] == false &&
+                !_shownNotificationIds.contains(notif['id'])) {
+              await LocalNotificationService.showNotification(
+                id: notif['id'].toString().hashCode,
+                title: _getNotificationTitle(notif['type']),
+                body: notif['message'],
+              );
+              _shownNotificationIds.add(notif['id']);
+              print(
+                '[NotificationService] Showed push notification for ${notif['id']}',
+              );
+            }
+          }
         }
       }
     } catch (e) {
       print('[NotificationService] Error checking notifications: $e');
+    }
+  }
+
+  String _getNotificationTitle(String? type) {
+    switch (type) {
+      case 'order_update':
+        return 'Order Update';
+      case 'verification':
+        return 'Verification Status';
+      case 'event_reminder':
+        return 'Event Reminder';
+      default:
+        return 'Notification';
     }
   }
 
