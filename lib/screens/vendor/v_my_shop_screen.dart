@@ -7,6 +7,10 @@ import '../../models/vendor_contact.dart';
 import '../../models/vendor_product.dart';
 import '../../services/vendor_service.dart';
 import '../../services/cloudinary_service.dart';
+import '../../services/validation_service.dart';
+import '../../services/availability_check_service.dart';
+import '../../utils/debouncer.dart';
+
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:iconify_flutter/iconify_flutter.dart';
 import 'package:iconify_flutter/icons/mdi.dart';
@@ -38,6 +42,21 @@ class _VendorMyShopState extends State<VendorMyShop> {
   final VendorService _vendorService = VendorService();
   final CloudinaryService _cloudinaryService = CloudinaryService();
   final ImagePicker _imagePicker = ImagePicker();
+
+  //For contact number nodes
+  final _phoneFocus = FocusNode();
+  final _phoneDebouncer = Debouncer();
+  String? _phoneError;
+  bool _phoneValid = true;
+  bool _showHint = true;
+
+  @override
+  void dispose() {
+    _phoneDebouncer.dispose();
+    _phoneFocus.dispose();
+    super.dispose();
+  }
+
   // Track locally edited products
   final Set<VendorProduct> _editedProducts = {};
 
@@ -177,7 +196,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                                     _currentVendor!.logoUrl!,
                                                   )
                                                 : const AssetImage(
-                                                        "lib/assets/images/logo_img.jpg",
+                                                        "lib/assets/images/default_profile.jpg",
                                                       )
                                                       as ImageProvider,
                                             fit: BoxFit.cover,
@@ -385,7 +404,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                       _currentVendor?.description ??
                                           "Shop description not yet added...",
                                       style: const TextStyle(
-                                        fontSize: 14,
+                                        fontSize: 13,
                                         color: Colors.black87,
                                       ),
                                     ),
@@ -399,10 +418,35 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                         MainAxisAlignment.spaceEvenly,
                                     children: [
                                       _buildActionButton(
-                                        label: "EDIT SHOP DETAILS",
-                                        onTap: () =>
-                                            _openEditShopDetails(context),
+                                        label: _isEditMode
+                                            ? "CANCEL"
+                                            : "EDIT SHOP DETAILS",
+                                        onTap: () {
+                                          if (_isEditMode) {
+                                            // Exit edit mode without saving
+                                            setState(() {
+                                              _isEditMode = false;
+                                            });
+                                          } else {
+                                            _openEditShopDetails(context);
+                                          }
+                                        },
+                                        backgroundColor: _isEditMode
+                                            ? const Color(
+                                                0xFFFFE5E5,
+                                              ) // light red bg
+                                            : const Color(
+                                                0xFFFFD400,
+                                              ), // default yellow bg
+                                        textColor: _isEditMode
+                                            ? const Color(
+                                                0xFF8B0000,
+                                              ) // dark red text
+                                            : const Color(
+                                                0xFF792401,
+                                              ), // default brown text
                                       ),
+
                                       _buildActionButton(
                                         label: _isEditMode
                                             ? "SAVE CHANGES"
@@ -411,33 +455,38 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                           if (_isEditMode) {
                                             final success =
                                                 await _saveAllProductChanges();
-                                            if (success) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    "All changes saved successfully",
-                                                  ),
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  success
+                                                      ? "All changes saved successfully"
+                                                      : "Some changes failed to save",
                                                 ),
-                                              );
-                                            } else {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    "Some changes failed to save",
-                                                  ),
-                                                ),
-                                              );
-                                            }
+                                              ),
+                                            );
                                           } else {
                                             setState(() {
                                               _isEditMode = true;
+                                              _showHint = true;
                                             });
                                           }
                                         },
+                                        backgroundColor: _isEditMode
+                                            ? const Color(
+                                                0xFFE0FABC,
+                                              ) // light green for save
+                                            : const Color(
+                                                0xFFFFD400,
+                                              ), // default yellow
+                                        textColor: _isEditMode
+                                            ? const Color(
+                                                0xFF276700,
+                                              ) // dark green text
+                                            : const Color(
+                                                0xFF792401,
+                                              ), // default brown text
                                       ),
                                     ],
                                   ),
@@ -445,14 +494,14 @@ class _VendorMyShopState extends State<VendorMyShop> {
                               ),
                             ),
 
-                            // White container overlapping
+                            // TOP PRODUCTS SECTION WHITE CONTAINER
+                            // ------------------ TOP PRODUCTS SECTION ------------------
                             Positioned(
-                              top: null,
-                              bottom: 0, // pin to bottom of orange
+                              bottom: 0,
                               left: 0,
                               right: 0,
                               child: Transform.translate(
-                                offset: const Offset(0, -9), // overlap depth
+                                offset: const Offset(0, -9),
                                 child: Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(10),
@@ -483,7 +532,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                           ),
                                           SizedBox(width: 8),
                                           Text(
-                                            "TOP PRODUCTS",
+                                            "SELLER'S TOP PICKS",
                                             style: TextStyle(
                                               fontFamily: "Bagel Fat One",
                                               fontSize: 20,
@@ -493,92 +542,156 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                         ],
                                       ),
 
-                                      SizedBox(height: 8),
+                                      const SizedBox(height: 4),
 
-                                      if (!_isEditMode)
-                                        // Add button at top - full width
-                                        SizedBox(
-                                          width: double
-                                              .infinity, // make button expand full width
-                                          child: TextButton(
-                                            style: TextButton.styleFrom(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 10,
-                                                  ),
-                                              backgroundColor: const Color(
-                                                0xFFFFD400,
-                                              ),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(6),
-                                              ),
-                                              alignment: Alignment
-                                                  .centerLeft, // text+icon stays left-aligned
+                                      // 🟡 Hint text visible only in edit mode
+                                      if (_isEditMode && _showHint)
+                                        Container(
+                                          width: double.infinity,
+                                          margin: const EdgeInsets.only(
+                                            left: 4,
+                                            top: 8,
+                                            bottom: 10,
+                                          ),
+                                          padding: const EdgeInsets.all(9),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFE7D1),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
                                             ),
-                                            onPressed: () {
-                                              if (_products
-                                                      .where(
-                                                        (p) =>
-                                                            p.isFeatured ==
-                                                            true,
-                                                      )
-                                                      .length >=
-                                                  5) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      "You can only feature 5 top products for your shop! Delete an existing product first to replace them.",
-                                                    ),
-                                                    backgroundColor: Colors.red,
-                                                  ),
-                                                );
-                                              } else {
-                                                _openAddProductDialog(context);
-                                              }
-                                            },
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .center, // center contents
-                                              mainAxisSize: MainAxisSize.max,
-                                              children: [
-                                                const Iconify(
-                                                  Ph.plus_bold,
-                                                  color: Color(0xFF792401),
-                                                  size: 15,
-                                                ),
-                                                const SizedBox(width: 6),
-                                                const Text(
-                                                  "Add",
+                                            border: Border.all(
+                                              color: const Color(0xFFDD602D),
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: Stack(
+                                            children: [
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 4,
+                                                    ), // space for close button
+                                                child: const Text(
+                                                  "Hint:\n"
+                                                  "💡 Tap once to open product details\n"
+                                                  "💡 Double-tap the fields you want to edit.",
                                                   style: TextStyle(
                                                     fontFamily: "Poppins",
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 10.5,
+                                                    color: Color(0xFF792401),
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                              Positioned(
+                                                top: 0,
+                                                right: 0,
+                                                child: GestureDetector(
+                                                  onTap: () {
+                                                    setState(() {
+                                                      _showHint = false;
+                                                    });
+                                                  },
+                                                  child: const Icon(
+                                                    Icons.close,
+                                                    size: 14,
                                                     color: Color(0xFF792401),
                                                   ),
                                                 ),
-                                              ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                      if (!_isEditMode)
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                          child: SizedBox(
+                                            width: double.infinity,
+                                            child: TextButton(
+                                              style: TextButton.styleFrom(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 10,
+                                                    ),
+                                                backgroundColor: const Color(
+                                                  0xFFFFD400,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                                alignment: Alignment.centerLeft,
+                                              ),
+                                              onPressed: () {
+                                                if (_products
+                                                        .where(
+                                                          (p) =>
+                                                              p.isFeatured ==
+                                                              true,
+                                                        )
+                                                        .length >=
+                                                    5) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        "You can only feature 5 top products for your shop! Delete an existing product first to replace them.",
+                                                      ),
+                                                      backgroundColor:
+                                                          Colors.red,
+                                                    ),
+                                                  );
+                                                } else {
+                                                  _openAddProductDialog(
+                                                    context,
+                                                  );
+                                                }
+                                              },
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: const [
+                                                  Iconify(
+                                                    Ph.plus_bold,
+                                                    color: Color(0xFF792401),
+                                                    size: 15,
+                                                  ),
+                                                  SizedBox(width: 6),
+                                                  Text(
+                                                    "Add",
+                                                    style: TextStyle(
+                                                      fontFamily: "Poppins",
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Color(0xFF792401),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                           ),
                                         ),
 
-                                      // Scrollable products
+                                      // FutureBuilder section
                                       FutureBuilder<List<VendorProduct>>(
                                         future: _vendorService.getTopProducts(
                                           widget.vendorId,
                                         ),
                                         builder: (context, snapshot) {
+                                          // 1️⃣ Loading State
                                           if (snapshot.connectionState ==
                                               ConnectionState.waiting) {
                                             return Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
                                                     vertical: 100,
-                                                  ), // top + bottom
+                                                  ),
                                               child: Center(
                                                 child:
                                                     LoadingAnimationWidget.inkDrop(
@@ -589,220 +702,308 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                                     ),
                                               ),
                                             );
-                                          } else if (snapshot.hasError) {
+                                          }
+
+                                          // 2️⃣ Error State
+                                          if (snapshot.hasError) {
                                             return const Center(
                                               child: Text(
                                                 "Failed to load products.",
                                               ),
                                             );
-                                          } else if (!snapshot.hasData ||
-                                              snapshot.data!.isEmpty) {
-                                            return Center(
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  // 👻 Ghost gif
-                                                  Image.asset(
-                                                    "lib/assets/icons/empty_ghost.gif",
-                                                    height:
-                                                        150, // adjust size as needed
-                                                  ),
-
-                                                  Text(
-                                                    "No top products yet.",
-                                                    style: TextStyle(
-                                                      color: Colors.black54,
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-
-                                                  SizedBox(height: 20),
-                                                ],
-                                              ),
-                                            );
                                           }
 
-                                          final _products = snapshot.data!;
-                                          return ReorderableListView.builder(
-                                            shrinkWrap: true,
-                                            physics:
-                                                const NeverScrollableScrollPhysics(),
-                                            padding: const EdgeInsets.only(
-                                              top: 13,
-                                            ),
-                                            itemCount: _products.length,
-                                            onReorder: (oldIndex, newIndex) {
-                                              setState(() {
-                                                if (newIndex > oldIndex)
-                                                  newIndex--;
-                                                final item = _products.removeAt(
-                                                  oldIndex,
-                                                );
-                                                _products.insert(
-                                                  newIndex,
-                                                  item,
-                                                );
-                                              });
-                                            },
-                                            itemBuilder: (context, index) {
-                                              final product = _products[index];
-                                              return Container(
-                                                key: ValueKey(product.id),
-                                                margin: const EdgeInsets.only(
-                                                  bottom: 10,
-                                                ),
-                                                padding: const EdgeInsets.all(
-                                                  10,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: _isEditMode
-                                                      ? const Color(0xFF792401)
-                                                      : const Color(0xFFDD602D),
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                child: Stack(
-                                                  clipBehavior: Clip.none,
+                                          // 3️⃣ Success or Empty State
+                                          if (snapshot.hasData) {
+                                            // assign products to our state list if not yet loaded
+                                            if (_products.isEmpty) {
+                                              _products.addAll(snapshot.data!);
+                                            }
+
+                                            // if still empty → show ghost gif
+                                            if (_products.isEmpty) {
+                                              return Center(
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
                                                   children: [
-                                                    Row(
-                                                      children: [
-                                                        // Image
-                                                        Container(
-                                                          width: 90,
-                                                          height: 90,
-                                                          decoration: BoxDecoration(
-                                                            border: Border.all(
-                                                              color:
-                                                                  const Color(
-                                                                    0xFFFFD800,
-                                                                  ),
-                                                              width: 4,
-                                                            ),
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  5,
-                                                                ),
-                                                            image: DecorationImage(
-                                                              image: NetworkImage(
-                                                                product.imageUrl ??
-                                                                    "https://via.placeholder.com/150",
-                                                              ),
-                                                              fit: BoxFit.cover,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 16,
-                                                        ),
-
-                                                        // Details
-                                                        Expanded(
-                                                          child: Column(
-                                                            crossAxisAlignment:
-                                                                CrossAxisAlignment
-                                                                    .start,
-                                                            children: [
-                                                              GestureDetector(
-                                                                onDoubleTap:
-                                                                    _isEditMode
-                                                                    ? () => _editProductField(
-                                                                        product,
-                                                                        "name",
-                                                                      )
-                                                                    : null,
-                                                                child: Text(
-                                                                  product.name ??
-                                                                      "No Name Provided",
-                                                                  style: const TextStyle(
-                                                                    fontFamily:
-                                                                        "Starla",
-                                                                    fontSize:
-                                                                        15,
-                                                                    color: Colors
-                                                                        .white,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              const SizedBox(
-                                                                height: 6,
-                                                              ),
-                                                              GestureDetector(
-                                                                onDoubleTap:
-                                                                    _isEditMode
-                                                                    ? () => _editProductField(
-                                                                        product,
-                                                                        "description",
-                                                                      )
-                                                                    : null,
-                                                                child: Container(
-                                                                  padding:
-                                                                      const EdgeInsets.all(
-                                                                        8,
-                                                                      ),
-                                                                  width: 168,
-                                                                  constraints:
-                                                                      const BoxConstraints(
-                                                                        minHeight:
-                                                                            55,
-                                                                      ),
-                                                                  decoration: BoxDecoration(
-                                                                    color: Colors
-                                                                        .white,
-                                                                    borderRadius:
-                                                                        BorderRadius.circular(
-                                                                          5,
-                                                                        ),
-                                                                  ),
-                                                                  child: Text(
-                                                                    product.description ??
-                                                                        "No description",
-                                                                    style: const TextStyle(
-                                                                      fontSize:
-                                                                          11,
-                                                                      color: Color(
-                                                                        0xDDDD602D,
-                                                                      ),
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .w500,
-                                                                    ),
-                                                                    overflow:
-                                                                        TextOverflow
-                                                                            .ellipsis,
-                                                                    maxLines: 3,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      ],
+                                                    Image.asset(
+                                                      "lib/assets/icons/empty_ghost.gif",
+                                                      height: 150,
                                                     ),
-
-                                                    // Delete icon
-                                                    if (_isEditMode)
-                                                      Positioned(
-                                                        top: -7,
-                                                        right: -5,
-                                                        child: GestureDetector(
-                                                          onTap: () =>
-                                                              _confirmDelete(
-                                                                context,
-                                                                product,
-                                                              ),
-                                                          child: const Iconify(
-                                                            IconParkSolid
-                                                                .delete_key,
-                                                            size: 27,
-                                                            color: Colors.white,
-                                                          ),
-                                                        ),
+                                                    const Text(
+                                                      "No top products yet.",
+                                                      style: TextStyle(
+                                                        color: Colors.black54,
+                                                        fontSize: 13,
                                                       ),
+                                                    ),
+                                                    const SizedBox(height: 20),
                                                   ],
                                                 ),
                                               );
-                                            },
-                                          );
+                                            }
+
+                                            // ✅ Normal Display of Product List
+                                            return ReorderableListView.builder(
+                                              shrinkWrap: true,
+                                              physics:
+                                                  const NeverScrollableScrollPhysics(),
+
+                                              itemCount: _products.length,
+                                              onReorder: (oldIndex, newIndex) {
+                                                setState(() {
+                                                  if (newIndex > oldIndex)
+                                                    newIndex--;
+                                                  final item = _products
+                                                      .removeAt(oldIndex);
+                                                  _products.insert(
+                                                    newIndex,
+                                                    item,
+                                                  );
+                                                });
+                                              },
+                                              itemBuilder: (context, index) {
+                                                final product =
+                                                    _products[index];
+
+                                                return GestureDetector(
+                                                  key: ValueKey(product.id),
+                                                  onTap: () =>
+                                                      _openProductDialog(
+                                                        context,
+                                                        product,
+                                                      ),
+                                                  onDoubleTap: _isEditMode
+                                                      ? () => _editProductField(
+                                                          product,
+                                                          "description",
+                                                        )
+                                                      : null,
+                                                  child: Container(
+                                                    margin:
+                                                        const EdgeInsets.only(
+                                                          bottom: 10,
+                                                        ),
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                          10,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: _isEditMode
+                                                          ? const Color(
+                                                              0xFF792401,
+                                                            )
+                                                          : const Color(
+                                                              0xFFDD602D,
+                                                            ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                    child: Stack(
+                                                      clipBehavior: Clip.none,
+                                                      children: [
+                                                        Row(
+                                                          children: [
+                                                            // ✅ Product image
+                                                            GestureDetector(
+                                                              onDoubleTap:
+                                                                  _isEditMode
+                                                                  ? () async {
+                                                                      final picked = await ImagePicker().pickImage(
+                                                                        source:
+                                                                            ImageSource.gallery,
+                                                                      );
+                                                                      if (picked !=
+                                                                          null) {
+                                                                        setState(() {
+                                                                          product
+                                                                              .imageUrl = picked
+                                                                              .path;
+                                                                          _editedProducts.add(
+                                                                            product,
+                                                                          );
+                                                                        });
+                                                                      }
+                                                                    }
+                                                                  : null,
+                                                              child: Container(
+                                                                width: 90,
+                                                                height: 90,
+                                                                decoration: BoxDecoration(
+                                                                  border: Border.all(
+                                                                    color: const Color(
+                                                                      0xFFFFD800,
+                                                                    ),
+                                                                    width: 4,
+                                                                  ),
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                        5,
+                                                                      ),
+                                                                  image: DecorationImage(
+                                                                    image:
+                                                                        product.imageUrl?.startsWith(
+                                                                              'http',
+                                                                            ) ==
+                                                                            true
+                                                                        ? NetworkImage(
+                                                                            product.imageUrl!,
+                                                                          )
+                                                                        : (product.imageUrl !=
+                                                                                  null &&
+                                                                              product.imageUrl!.isNotEmpty)
+                                                                        ? FileImage(
+                                                                            File(
+                                                                              product.imageUrl!,
+                                                                            ),
+                                                                          )
+                                                                        : const AssetImage(
+                                                                                'lib/assets/icons/placeholder.png',
+                                                                              )
+                                                                              as ImageProvider,
+                                                                    fit: BoxFit
+                                                                        .cover,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                              width: 16,
+                                                            ),
+
+                                                            // ✅ Product text
+                                                            Expanded(
+                                                              child: Column(
+                                                                crossAxisAlignment:
+                                                                    CrossAxisAlignment
+                                                                        .start,
+                                                                children: [
+                                                                  Text(
+                                                                    product.name ??
+                                                                        "No Name Provided",
+                                                                    style: const TextStyle(
+                                                                      fontFamily:
+                                                                          "Starla",
+                                                                      fontSize:
+                                                                          15,
+                                                                      color: Colors
+                                                                          .white,
+                                                                    ),
+                                                                  ),
+                                                                  const SizedBox(
+                                                                    height: 6,
+                                                                  ),
+
+                                                                  // ✅ White background with fade-out at bottom
+                                                                  Container(
+                                                                    width: 168,
+                                                                    height: 70,
+                                                                    decoration: BoxDecoration(
+                                                                      color: Colors
+                                                                          .white,
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(
+                                                                            5,
+                                                                          ),
+                                                                    ),
+                                                                    child: Stack(
+                                                                      children: [
+                                                                        // Description text
+                                                                        Padding(
+                                                                          padding:
+                                                                              const EdgeInsets.all(
+                                                                                8,
+                                                                              ),
+                                                                          child: Text(
+                                                                            product.description ??
+                                                                                "No description",
+                                                                            style: const TextStyle(
+                                                                              fontSize: 11,
+                                                                              color: Color(
+                                                                                0xFFDD602D,
+                                                                              ),
+                                                                              fontWeight: FontWeight.w500,
+                                                                            ),
+                                                                            maxLines:
+                                                                                3,
+                                                                            overflow:
+                                                                                TextOverflow.fade,
+                                                                            softWrap:
+                                                                                true,
+                                                                          ),
+                                                                        ),
+
+                                                                        // Fade effect at the bottom
+                                                                        Positioned(
+                                                                          left:
+                                                                              0,
+                                                                          right:
+                                                                              0,
+                                                                          bottom:
+                                                                              0,
+                                                                          height:
+                                                                              16,
+                                                                          child: Container(
+                                                                            decoration: BoxDecoration(
+                                                                              gradient: LinearGradient(
+                                                                                begin: Alignment.topCenter,
+                                                                                end: Alignment.bottomCenter,
+                                                                                colors: [
+                                                                                  Colors.white.withOpacity(
+                                                                                    0,
+                                                                                  ),
+                                                                                  Colors.white,
+                                                                                ],
+                                                                              ),
+                                                                              borderRadius: const BorderRadius.vertical(
+                                                                                bottom: Radius.circular(
+                                                                                  5,
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+
+                                                        if (_isEditMode)
+                                                          Positioned(
+                                                            top: -7,
+                                                            right: -5,
+                                                            child: GestureDetector(
+                                                              onTap: () =>
+                                                                  _confirmDelete(
+                                                                    context,
+                                                                    product,
+                                                                  ),
+                                                              child: const Iconify(
+                                                                IconParkSolid
+                                                                    .delete_key,
+                                                                size: 27,
+                                                                color: Colors
+                                                                    .white,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            );
+                                          }
+
+                                          // Fallback (no data)
+                                          return const SizedBox.shrink();
                                         },
                                       ),
                                     ],
@@ -827,6 +1028,8 @@ class _VendorMyShopState extends State<VendorMyShop> {
   Widget _buildActionButton({
     required String label,
     required VoidCallback onTap,
+    Color backgroundColor = const Color(0xFFFFD400),
+    Color textColor = const Color(0xFF792401),
   }) {
     return Expanded(
       child: GestureDetector(
@@ -835,18 +1038,18 @@ class _VendorMyShopState extends State<VendorMyShop> {
           margin: const EdgeInsets.symmetric(horizontal: 3),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFD400),
+            color: backgroundColor,
             borderRadius: BorderRadius.circular(15),
           ),
           child: Center(
             child: Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Poppins',
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: Color(0xFF792401),
+                fontSize: 11,
+                color: textColor,
               ),
             ),
           ),
@@ -855,83 +1058,97 @@ class _VendorMyShopState extends State<VendorMyShop> {
     );
   }
 
-  // Pick & upload vendor logo (profile picture)
-  Future<void> _pickAndUploadImage() async {
-    try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 85,
-      );
-
-      if (image != null) {
-        setState(() {
-          _isUploadingImage = true;
-        });
-
-        final imageFile = File(image.path);
-        final result = await _cloudinaryService.uploadImage(imageFile);
-
-        if (result != null) {
-          final updatedVendor = Vendor(
-            id: _currentVendor?.id ?? "Unknown",
-            businessName: _currentVendor?.businessName ?? "",
-            description: _currentVendor?.description,
-            logoUrl: result.secureUrl,
-            socialLinks: _currentVendor?.socialLinks ?? SocialLinks(),
-            verified: _currentVendor?.verified ?? false,
-            businessCategory: _currentVendor?.businessCategory,
-            createdAt: _currentVendor?.createdAt ?? DateTime.now(),
-            contact: _currentVendor?.contact,
-          );
-
-          final success = await _vendorService.updateVendorProfile(
-            updatedVendor,
-          );
-
-          if (success) {
-            setState(() {
-              _currentVendor = updatedVendor;
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Profile picture updated successfully!"),
-                backgroundColor: Colors.green,
+  //This edit field is for INSIDE EDIT SHOP DETAILS
+  Widget _buildEditField(
+    String label,
+    TextEditingController controller, {
+    int maxLines = 1,
+    int? maxLength, // new param
+    FocusNode? focusNode,
+    Function(String)? onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
               ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Failed to update profile picture."),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Failed to upload image. Please try again."),
-              backgroundColor: Colors.red,
+              if (maxLength != null)
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller,
+                  builder: (context, value, _) {
+                    return Text(
+                      "${value.text.length}/$maxLength",
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontFamily: 'Poppins',
+                        color: value.text.length > maxLength
+                            ? Colors.red
+                            : Colors.grey[600],
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: controller,
+            focusNode: focusNode,
+            maxLines: maxLines,
+            maxLength: maxLength,
+            onChanged: onChanged,
+            buildCounter:
+                (_, {required currentLength, maxLength, required isFocused}) =>
+                    null,
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 13,
+              color: Colors.black87,
             ),
-          );
-        }
-      }
-    } catch (e) {
-      print('[v0] Error picking/uploading image: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error: ${e.toString()}"),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() {
-        _isUploadingImage = false;
-      });
-    }
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 10,
+                horizontal: 12,
+              ),
+              hintStyle: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 13,
+                color: Colors.grey,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Colors.black26, width: 1),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Colors.deepOrange,
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
+  // -----------------------------------------------------------------
+  // THE VOID
+  // -----------------------------------------------------------------
   void _openEditShopDetails(BuildContext context) {
     final businessNameController = TextEditingController(
       text: _currentVendor?.businessName,
@@ -1027,7 +1244,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                           child: Text(
                             "Edit Shop Details",
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
                             textAlign: TextAlign.center,
@@ -1070,7 +1287,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                             _currentVendor!.logoUrl!.isNotEmpty
                                         ? NetworkImage(_currentVendor!.logoUrl!)
                                         : const AssetImage(
-                                                "lib/assets/images/logo_img.jpg",
+                                                "lib/assets/images/default_profile.jpg",
                                               )
                                               as ImageProvider,
                                     fit: BoxFit.cover,
@@ -1122,16 +1339,68 @@ class _VendorMyShopState extends State<VendorMyShop> {
                           _buildEditField(
                             "Business Name",
                             businessNameController,
+                            maxLength: 20,
                           ),
-                          _buildEditField("Facebook URL", facebookController),
-                          _buildEditField("Instagram URL", instagramController),
-                          _buildEditField("Website URL", websiteController),
-                          _buildEditField("TikTok URL", tiktokController),
-                          _buildEditField("Contact Number", phoneController),
+
+                          _buildEditField(
+                            "Facebook URL",
+                            facebookController,
+                            maxLength: 80,
+                          ),
+
+                          _buildEditField(
+                            "Instagram URL",
+                            instagramController,
+                            maxLength: 80,
+                          ),
+
+                          _buildEditField(
+                            "Website URL",
+                            websiteController,
+                            maxLength: 80,
+                          ),
+
+                          _buildEditField(
+                            "TikTok URL",
+                            tiktokController,
+                            maxLength: 80,
+                          ),
+
+                          // ✅ Contact number with validation + debounce
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildEditField(
+                                "Contact Number",
+                                phoneController,
+                                focusNode: _phoneFocus,
+                                onChanged: (value) =>
+                                    _onPhoneChanged(value, setModalState),
+                                maxLength: 15,
+                              ),
+                              if (_phoneError != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 8,
+                                    bottom: 8,
+                                  ),
+                                  child: Text(
+                                    _phoneError!,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontFamily: 'Poppins',
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+
                           _buildEditField(
                             "Business Description",
                             descriptionController,
                             maxLines: 3,
+                            maxLength: 150,
                           ),
 
                           const SizedBox(height: 20),
@@ -1348,7 +1617,8 @@ class _VendorMyShopState extends State<VendorMyShop> {
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _isLoading || getSelectedCount() > 3
+                        onPressed:
+                            _isLoading || getSelectedCount() > 3 || !_phoneValid
                             ? null
                             : () async {
                                 setModalState(() {
@@ -1508,6 +1778,30 @@ class _VendorMyShopState extends State<VendorMyShop> {
     );
   }
 
+  void _onPhoneChanged(
+    String value,
+    void Function(VoidCallback fn) setModalState,
+  ) {
+    final formatError = ValidationService.validatePhoneFormat(value);
+    if (formatError != null) {
+      setModalState(() {
+        _phoneError = formatError;
+        _phoneValid = false;
+      });
+      return;
+    }
+
+    _phoneDebouncer.run(() async {
+      final error = await AvailabilityCheckService.checkPhoneAvailability(
+        value,
+      );
+      setModalState(() {
+        _phoneError = error;
+        _phoneValid = error == null;
+      });
+    });
+  }
+
   // Open Add Product dialog
   void _openAddProductDialog(BuildContext context) {
     showDialog(
@@ -1560,7 +1854,8 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                             }
                                           },
                                     child: Container(
-                                      height: 200,
+                                      padding: const EdgeInsets.only(top: 8),
+                                      height: 230,
                                       decoration: BoxDecoration(
                                         color: Colors.white.withOpacity(0.2),
                                         borderRadius: BorderRadius.circular(8),
@@ -1569,6 +1864,8 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                       child: pickedImage == null
                                           ? Center(
                                               child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.start,
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: const [
                                                   Icon(
@@ -1605,11 +1902,63 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                 // Right: name and description inputs
                                 Expanded(
                                   child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      // Product name
+                                      // ==== PRODUCT NAME ====
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            "Name",
+                                            style: TextStyle(
+                                              fontFamily: "Poppins",
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 5,
+                                              vertical: 1,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child:
+                                                ValueListenableBuilder<
+                                                  TextEditingValue
+                                                >(
+                                                  valueListenable:
+                                                      nameController,
+                                                  builder: (context, value, _) {
+                                                    return Text(
+                                                      "${value.text.length}/20",
+                                                      style: const TextStyle(
+                                                        color: Color(
+                                                          0xFFDD602D,
+                                                        ),
+                                                        fontSize: 10,
+                                                        fontFamily: "Poppins",
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
                                       Container(
-                                        height: 42,
-                                        padding: const EdgeInsets.all(8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 3,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Colors.white,
                                           borderRadius: BorderRadius.circular(
@@ -1618,6 +1967,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                         ),
                                         child: TextField(
                                           controller: nameController,
+                                          maxLength: 20,
                                           style: const TextStyle(
                                             fontFamily: "Poppins",
                                             color: Color(0xFF792401),
@@ -1626,20 +1976,70 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                               TextAlignVertical.center,
                                           decoration: const InputDecoration(
                                             border: InputBorder.none,
-                                            hintText: "Product name...",
+                                            hintText: "e.g. Handmade Necklace",
                                             hintStyle: TextStyle(
                                               fontFamily: "Poppins",
                                               fontSize: 12,
                                               color: Color(0xFFDD602D),
                                             ),
-                                            isCollapsed:
-                                                true, //remove default padding
+                                            counterText: "",
+                                            isCollapsed: true,
                                             contentPadding: EdgeInsets.zero,
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      // Description
+
+                                      const SizedBox(height: 12),
+
+                                      // ==== PRODUCT DESCRIPTION ====
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            "Description",
+                                            style: TextStyle(
+                                              fontFamily: "Poppins",
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 5,
+                                              vertical: 1,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child:
+                                                ValueListenableBuilder<
+                                                  TextEditingValue
+                                                >(
+                                                  valueListenable:
+                                                      descController,
+                                                  builder: (context, value, _) {
+                                                    return Text(
+                                                      "${value.text.length}/150",
+                                                      style: const TextStyle(
+                                                        color: Color(
+                                                          0xFFDD602D,
+                                                        ),
+                                                        fontSize: 10,
+                                                        fontFamily: "Poppins",
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
                                       Container(
                                         height: 150,
                                         padding: const EdgeInsets.symmetric(
@@ -1653,6 +2053,7 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                         ),
                                         child: TextField(
                                           controller: descController,
+                                          maxLength: 150,
                                           maxLines: null,
                                           style: const TextStyle(
                                             fontFamily: "Poppins",
@@ -1661,12 +2062,13 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                           decoration: const InputDecoration(
                                             border: InputBorder.none,
                                             hintText:
-                                                "Type your top product description here...",
+                                                "e.g. A beautiful handmade necklace perfect for any occasion.",
                                             hintStyle: TextStyle(
                                               fontFamily: "Poppins",
                                               fontSize: 12,
                                               color: Color(0xFFDD602D),
                                             ),
+                                            counterText: "",
                                           ),
                                         ),
                                       ),
@@ -1794,8 +2196,10 @@ class _VendorMyShopState extends State<VendorMyShop> {
                                 ),
                               ),
                       ),
+                      const SizedBox(height: 16),
                     ],
                   ),
+
                   // Close button
                   Positioned(
                     top: -10,
@@ -1965,6 +2369,272 @@ class _VendorMyShopState extends State<VendorMyShop> {
     );
   }
 
+  // Edit product name or description
+  void _editProductField(VendorProduct product, String field) {
+    final maxLength = field == "name" ? 20 : 150;
+    final controller = TextEditingController(
+      text: field == 'name' ? product.name : product.description,
+    );
+
+    showDialog(
+      barrierColor: const Color(0xFF792401).withOpacity(0.95),
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              backgroundColor: Colors.transparent,
+              contentPadding: EdgeInsets.zero,
+              content: Container(
+                padding: const EdgeInsets.fromLTRB(16, 25, 16, 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "Edit ${field[0].toUpperCase()}${field.substring(1)}",
+                        style: const TextStyle(
+                          fontFamily: "Poppins",
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFDD602D),
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Input field with char limit
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: const Color.fromARGB(99, 221, 95, 45),
+                        ),
+                      ),
+                      child: TextField(
+                        controller: controller,
+                        maxLength: maxLength,
+                        maxLines: field == "description" ? 3 : 1,
+                        onChanged: (_) => setStateDialog(() {}),
+                        style: const TextStyle(
+                          fontFamily: "Poppins",
+                          fontSize: 12,
+                          color: Color(0xFF792401),
+                        ),
+                        decoration: InputDecoration(
+                          counterText: "", // hide default counter
+                          border: InputBorder.none,
+                          hintText: "Enter $field",
+                          hintStyle: const TextStyle(
+                            fontFamily: "Poppins",
+                            fontSize: 12,
+                            color: Color(0xFFDD602D),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Custom counter below input
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        "${controller.text.length} / $maxLength",
+                        style: const TextStyle(
+                          fontFamily: "Poppins",
+                          fontSize: 11,
+                          color: Color(0xFFDD602D),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 15),
+                            foregroundColor: const Color(0xFFDD602D),
+                            side: const BorderSide(color: Color(0xFFDD602D)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () => Navigator.of(dialogCtx).pop(),
+                          child: const Text(
+                            "Cancel",
+                            style: TextStyle(
+                              fontFamily: "Poppins",
+                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 15),
+                            backgroundColor: const Color(0xFFDD602D),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.of(dialogCtx).pop();
+                            final newValue = controller.text.trim();
+                            setState(() {
+                              if (field == "name") {
+                                product.name = newValue;
+                              } else {
+                                product.description = newValue;
+                              }
+                              _editedProducts.add(product);
+                            });
+                          },
+                          child: const Text(
+                            "Enter Changes",
+                            style: TextStyle(
+                              fontFamily: "Poppins",
+                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // View product details in a dialog
+  void _openProductDialog(BuildContext context, VendorProduct product) {
+    showDialog(
+      context: context,
+      barrierColor: const Color(0xFF792401).withOpacity(0.95),
+      builder: (context) {
+        final double dialogWidth = MediaQuery.of(context).size.width * 0.8;
+
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(16),
+          child: Center(
+            child: Container(
+              width: dialogWidth,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDD602D),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white, width: 3),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Product Image
+                  Container(
+                    width: 150,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: const Color(0xFFFFD400),
+                        width: 4,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      image: DecorationImage(
+                        image: product.imageUrl!.startsWith('http')
+                            ? NetworkImage(product.imageUrl!)
+                            : FileImage(File(product.imageUrl!))
+                                  as ImageProvider,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Product Name
+                  Text(
+                    product.name ?? "Unnamed Product",
+                    style: const TextStyle(
+                      fontFamily: "Starla",
+                      fontSize: 18,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Product Description with white background
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 140),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        product.description ??
+                            "No description available for this product.",
+                        style: const TextStyle(
+                          fontFamily: "Poppins",
+                          fontSize: 12,
+                          color: Color(0xFFDD602D),
+                          height: 1.5,
+                          fontWeight: FontWeight.w400, // More weight
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Close Button
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFD400),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      "Close",
+                      style: TextStyle(
+                        fontFamily: "Poppins",
+                        color: Color(0xFF792401),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _loadVendorProducts() async {
     setState(() {
       _isLoading = true;
@@ -2014,204 +2684,80 @@ class _VendorMyShopState extends State<VendorMyShop> {
     return allSuccess;
   }
 
-  void _editProductField(VendorProduct product, String field) {
-    final controller = TextEditingController(
-      text: field == 'name' ? product.name : product.description,
-    );
+  // Pick & upload vendor logo (profile picture)
+  Future<void> _pickAndUploadImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
 
-    showDialog(
-      barrierDismissible: false,
-      barrierColor: const Color(0xFF792401).withOpacity(0.95),
-      context: context,
-      builder: (dialogCtx) {
-        return AlertDialog(
-          backgroundColor: Colors.transparent, // so outer container is visible
-          contentPadding: EdgeInsets.zero, // remove default padding
-          content: Container(
-            padding: const EdgeInsets.fromLTRB(16, 25, 16, 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Edit ${field[0].toUpperCase()}${field.substring(1)}",
-                    style: const TextStyle(
-                      fontFamily: "Poppins",
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFDD602D),
-                      fontSize: 18,
-                    ),
-                  ),
-                ),
+      if (image != null) {
+        setState(() {
+          _isUploadingImage = true;
+        });
 
-                const SizedBox(height: 10),
+        final imageFile = File(image.path);
+        final result = await _cloudinaryService.uploadImage(imageFile);
 
-                // Custom styled input field
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: const Color.fromARGB(99, 221, 95, 45),
-                    ),
-                  ),
-                  child: TextField(
-                    controller: controller,
-                    maxLines: field == "description" ? 3 : 1,
-                    style: const TextStyle(
-                      fontFamily: "Poppins",
-                      fontSize: 12,
-                      color: Color(0xFF792401),
-                    ),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: "Enter $field",
-                      hintStyle: const TextStyle(
-                        fontFamily: "Poppins",
-                        fontSize: 12,
-                        color: Color(0xFFDD602D),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
+        if (result != null) {
+          final updatedVendor = Vendor(
+            id: _currentVendor?.id ?? "Unknown",
+            businessName: _currentVendor?.businessName ?? "",
+            description: _currentVendor?.description,
+            logoUrl: result.secureUrl,
+            socialLinks: _currentVendor?.socialLinks ?? SocialLinks(),
+            verified: _currentVendor?.verified ?? false,
+            businessCategory: _currentVendor?.businessCategory,
+            createdAt: _currentVendor?.createdAt ?? DateTime.now(),
+            contact: _currentVendor?.contact,
+          );
 
-                // Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 15),
-                        foregroundColor: const Color(0xFFDD602D), // text color
-                        side: const BorderSide(
-                          color: Color(0xFFDD602D),
-                        ), // orange outline
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: () => Navigator.of(dialogCtx).pop(),
-                      child: const Text(
-                        "Cancel",
-                        style: TextStyle(
-                          fontFamily: "Poppins",
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 15),
-                        backgroundColor: const Color(0xFFDD602D), // orange bg
-                        foregroundColor: Colors.white, // white text
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.of(dialogCtx).pop();
+          final success = await _vendorService.updateVendorProfile(
+            updatedVendor,
+          );
 
-                        final newValue = controller.text.trim();
-                        setState(() {
-                          if (field == "name") {
-                            product.name = newValue;
-                          } else {
-                            product.description = newValue;
-                          }
-
-                          // Mark as edited for batch save later
-                          _editedProducts.add(product);
-                        });
-                      },
-                      child: const Text(
-                        "Enter Changes",
-                        style: TextStyle(
-                          fontFamily: "Poppins",
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  //This edit field is for EDIT SHOP DETAILS
-  Widget _buildEditField(
-    String label,
-    TextEditingController controller, {
-    int maxLines = 1,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
+          if (success) {
+            setState(() {
+              _currentVendor = updatedVendor;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Profile picture updated successfully!"),
+                backgroundColor: Colors.green,
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 3,
-            child: TextFormField(
-              controller: controller,
-              maxLines: maxLines,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: Colors.black87,
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Failed to update profile picture."),
+                backgroundColor: Colors.red,
               ),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: 12,
-                ),
-                hintStyle: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  color: Colors.grey,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.black26, width: 1),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(
-                    color: Colors.deepOrange,
-                    width: 1.5,
-                  ),
-                ),
-              ),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Failed to upload image. Please try again."),
+              backgroundColor: Colors.red,
             ),
-          ),
-        ],
-      ),
-    );
+          );
+        }
+      }
+    } catch (e) {
+      print('[v0] Error picking/uploading image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error: ${e.toString()}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isUploadingImage = false;
+      });
+    }
   }
 }
